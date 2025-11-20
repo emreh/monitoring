@@ -1,5 +1,6 @@
 package ir.myhome.agent;
 
+import ir.myhome.agent.advice.TraceContext;
 import net.bytebuddy.asm.Advice;
 
 import java.util.UUID;
@@ -31,4 +32,17 @@ public class TimingAdvice {
                 traceId, spanId, method, status);
         AgentMain.enqueueSpan(json);
     }
+
+    @Advice.OnMethodEnter
+    static void onEnterController(@Advice.Origin("#t.#m") String method,
+                                  @Advice.Argument(0) Object arg) {
+        String traceId = TraceContext.getTraceId();
+        if (traceId == null) {
+            traceId = UUID.randomUUID().toString();
+            TraceContext.setTraceId(traceId);
+        }
+
+        System.out.println("TRACE_ENTER=" + traceId + " on " + method);
+    }
+
 }

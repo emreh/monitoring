@@ -1,5 +1,7 @@
 package ir.myhome.agent;
 
+import ir.myhome.agent.advice.ControllerTraceAdvice;
+import ir.myhome.agent.advice.ServiceTraceAdvice;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -36,23 +38,26 @@ public class AgentMain {
                 .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
                 .with(AgentBuilder.Listener.StreamWriting.toSystemOut());
 
-        // Transform Services
-        agentBuilder = agentBuilder.type(td -> td.getName().startsWith("ir.myhome.spring.service"))
+        // Controller
+        agentBuilder = agentBuilder
+                .type(typeDesc -> typeDesc.getName().startsWith("ir.myhome.spring.controller"))
                 .transform((builder, td, cl, module, pd) ->
-                        builder.visit(Advice.to(TimingAdvice.class)
+                        builder.visit(Advice.to(ControllerTraceAdvice.class)
                                 .on(ElementMatchers.isMethod()
                                         .and(ElementMatchers.not(ElementMatchers.isConstructor()))
                                 ))
                 );
 
-        // Transform Controllers
-        agentBuilder = agentBuilder.type(td -> td.getName().startsWith("ir.myhome.spring.controller"))
+// Service
+        agentBuilder = agentBuilder
+                .type(typeDesc -> typeDesc.getName().startsWith("ir.myhome.spring.service"))
                 .transform((builder, td, cl, module, pd) ->
-                        builder.visit(Advice.to(TimingAdvice.class)
+                        builder.visit(Advice.to(ServiceTraceAdvice.class)
                                 .on(ElementMatchers.isMethod()
                                         .and(ElementMatchers.not(ElementMatchers.isConstructor()))
                                 ))
                 );
+
 
         agentBuilder.installOn(inst);
 
