@@ -6,8 +6,6 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.utility.JavaModule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -34,7 +32,6 @@ import java.util.concurrent.TimeUnit;
  * -javaagent:/path/to/simple-agent-0.1.0.jar=collectorUrl=http://localhost:8081/api/v1/spans,packages=ir.myhome.service;com.other
  */
 public class AgentMain {
-    private static final Logger logger = LoggerFactory.getLogger(AgentMain.class);
 
     // outbound queue for JSON payloads (individual span JSONs)
     static final LinkedBlockingQueue<String> outQueue = new LinkedBlockingQueue<>(10_000);
@@ -53,7 +50,7 @@ public class AgentMain {
 
     public static void premain(String agentArgs, Instrumentation inst) {
         try {
-            logger.info("Agent premain starting with args: {}", agentArgs);
+            System.out.println("Agent premain starting with args: " + agentArgs);
             parseArgs(agentArgs);
 
             // start sender runnable scheduled at fixed rate
@@ -94,11 +91,46 @@ public class AgentMain {
                         }
                     });
 
+            agentBuilder = agentBuilder
+                    .type(ElementMatchers.declaresMethod(
+                            ElementMatchers.named("doFilter")
+                                    .and(ElementMatchers.takesArguments(3))
+                    ))
+                    .transform((builder, td, cl, module, pd) ->
+                            builder.visit(Advice.to(ServletFilterAdvice.class)
+                                    .on(ElementMatchers.named("doFilter")
+                                            .and(ElementMatchers.takesArguments(3))
+                                    ))
+                    );
+
+            agentBuilder = agentBuilder
+                    // target classes that look like controllers and are inside configured packages
+                    .type(typeDesc -> {
+                        String name = typeDesc.getName();
+                        boolean isControllerName = name.contains("Controller");
+                        boolean inPackage = false;
+
+                        for (String p : packagePrefixes)
+                            if (name.startsWith(p)) {
+                                inPackage = true;
+                                break;
+                            }
+
+                        return isControllerName && inPackage;
+                    })
+                    .transform((builder, typeDescription, classLoader, module, protectionDomain) ->
+                            builder.visit(Advice.to(MethodTimerAdvice.class)
+                                    .on(net.bytebuddy.matcher.ElementMatchers.isMethod()
+                                            .and(net.bytebuddy.matcher.ElementMatchers.not(net.bytebuddy.matcher.ElementMatchers.isConstructor()))
+                                    )
+                            )
+                    );
+
             agentBuilder.installOn(inst);
 
-            logger.info("Agent installed. Monitoring packages: {}", packagePrefixes);
+            System.out.println("Agent installed. Monitoring packages: " + packagePrefixes);
         } catch (Throwable t) {
-            logger.error("Agent failed to start", t);
+            System.err.println("Agent failed to start" + t);
         }
     }
 
@@ -133,10 +165,10 @@ public class AgentMain {
                         batchSize = Integer.parseInt(v);
                         break;
                     default:
-                        logger.info("Unknown agent arg: {}={}", k, v);
+                        System.out.println("Unknown agent arg: " + k + "=" + v);
                 }
             } catch (Exception e) {
-                logger.warn("Invalid agent arg {}={}, ignoring", k, v);
+                System.err.println("Invalid agent arg {}={}, ignoring" + k + "=" + v);
             }
         }
     }
@@ -159,7 +191,7 @@ public class AgentMain {
             sb.append("]");
             postJson(collectorUrl, sb.toString());
         } catch (Exception e) {
-            logger.warn("Error flushing batch", e);
+            System.out.println("Error flushing batch" + e);
         }
     }
 
@@ -182,10 +214,10 @@ public class AgentMain {
             if (code >= 200 && code < 300) {
                 // ok
             } else {
-                logger.warn("Collector returned HTTP {}", code);
+                System.out.println("Collector returned HTTP " + code);
             }
         } catch (IOException e) {
-            logger.debug("Failed to send to collector (dropping): {}", e.getMessage());
+            System.out.println("Failed to send to collector (dropping): " + e.getMessage());
         } finally {
             if (conn != null) conn.disconnect();
         }

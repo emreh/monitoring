@@ -17,11 +17,13 @@ public class TimingAdvice {
                        @Advice.Thrown Throwable thrown) {
         try {
             long durationMs = (System.nanoTime() - startTime) / 1_000_000L;
-            String traceId = UUID.randomUUID().toString();
+            String traceId = TraceContext.get();
+            if (traceId == null)
+                traceId = UUID.randomUUID().toString();
+
             String spanId = UUID.randomUUID().toString();
             String status = (thrown == null) ? "SUCCESS" : "ERROR";
 
-            // build JSON minimal payload (escape method if needed)
             String json = String.format(
                     "{\"traceId\":\"%s\",\"spanId\":\"%s\",\"parentId\":null,\"service\":\"%s\",\"endpoint\":\"%s\",\"startEpochMs\":%d,\"durationMs\":%d,\"status\":\"%s\"}",
                     traceId,
@@ -35,11 +37,10 @@ public class TimingAdvice {
 
             AgentMain.enqueueSpan(json);
         } catch (Throwable t) {
-            // swallow everything to avoid impacting app
+            // swallow
         }
     }
 
-    // very small JSON escaper for double quotes and backslash
     private static String escapeJson(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
