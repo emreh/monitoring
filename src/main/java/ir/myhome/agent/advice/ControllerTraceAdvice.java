@@ -1,5 +1,6 @@
 package ir.myhome.agent.advice;
 
+import ir.myhome.agent.TraceContext;
 import net.bytebuddy.asm.Advice;
 
 import java.util.UUID;
@@ -7,29 +8,18 @@ import java.util.UUID;
 public class ControllerTraceAdvice {
 
     @Advice.OnMethodEnter
-    public static void onEnter(@Advice.Origin("#t.#m") String methodName) {
-        String traceId = TraceContext.getTraceId();
-        if (traceId == null) {
-            traceId = UUID.randomUUID().toString();
-            TraceContext.setTraceId(traceId);
+    static void onEnter() {
+        if (TraceContext.getTraceId() == null) {
+            TraceContext.setTraceId(UUID.randomUUID().toString());
         }
-
-        System.out.println("[Controller Enter] traceId=" + traceId + " method=" + methodName);
+        System.out.println("TRACE_ENTER=" + TraceContext.getTraceId());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void onExit(@Advice.Origin("#t.#m") String methodName,
-                              @Advice.Thrown Throwable thrown) {
-
+    static void onExit(@Advice.Origin("#t.#m") String method) {
         String traceId = TraceContext.getTraceId();
-
-        if (thrown == null) {
-            System.out.println("[Controller Exit] traceId=" + traceId + " method=" + methodName);
-        } else {
-            System.out.println("[Controller Exception] traceId=" + traceId + " method=" +
-                    methodName + " ex=" + thrown);
-        }
-
+        String spanId = UUID.randomUUID().toString();
+        System.out.println("TRACE_EXIT traceId=" + traceId + ", spanId=" + spanId + ", method=" + method + ", status=SUCCESS");
         TraceContext.clear();
     }
 }

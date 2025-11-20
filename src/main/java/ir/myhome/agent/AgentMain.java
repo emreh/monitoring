@@ -8,10 +8,7 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 import java.lang.instrument.Instrumentation;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class AgentMain {
 
@@ -40,26 +37,68 @@ public class AgentMain {
 
         // Controller
         agentBuilder = agentBuilder
-                .type(typeDesc -> typeDesc.getName().startsWith("ir.myhome.spring.controller"))
+                .type(td -> td.getName().startsWith("ir.myhome.spring.controller"))
                 .transform((builder, td, cl, module, pd) ->
                         builder.visit(Advice.to(ControllerTraceAdvice.class)
-                                .on(ElementMatchers.isMethod()
-                                        .and(ElementMatchers.not(ElementMatchers.isConstructor()))
-                                ))
+                                .on(ElementMatchers.isMethod().and(ElementMatchers.not(ElementMatchers.isConstructor()))))
                 );
 
-// Service
+        // Service
         agentBuilder = agentBuilder
-                .type(typeDesc -> typeDesc.getName().startsWith("ir.myhome.spring.service"))
+                .type(td -> td.getName().startsWith("ir.myhome.spring.service"))
                 .transform((builder, td, cl, module, pd) ->
                         builder.visit(Advice.to(ServiceTraceAdvice.class)
-                                .on(ElementMatchers.isMethod()
-                                        .and(ElementMatchers.not(ElementMatchers.isConstructor()))
-                                ))
+                                .on(ElementMatchers.isMethod().and(ElementMatchers.not(ElementMatchers.isConstructor()))))
+                );
+
+        agentBuilder = agentBuilder
+                .type(typeDesc -> "java.util.concurrent.ThreadPoolExecutor".equals(typeDesc.getName())
+                        || typeDesc.getName().endsWith("ExecutorService"))
+                .transform((builder, td, cl, module, pd) ->
+                        builder.visit(
+                                Advice.to(ExecutorTraceAdvice.class)
+                                        .on(ElementMatchers.named("execute")
+                                                .or(ElementMatchers.named("submit"))
+                                                .or(ElementMatchers.named("invokeAll"))
+                                                .or(ElementMatchers.named("invokeAny"))
+                                        )
+                        )
                 );
 
 
         agentBuilder.installOn(inst);
+
+        // --- instrument JDK ThreadPoolExecutor (careful, but targeted) ---
+        AgentBuilder threadPoolExecutor = new AgentBuilder.Default()
+                .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+                .with(AgentBuilder.Listener.StreamWriting.toSystemOut())
+                .type(ElementMatchers.named("java.util.concurrent.ThreadPoolExecutor"))
+                .transform((builder, td, cl, module, pd) ->
+                        builder.visit(
+                                Advice.to(ExecutorSubmitAdvice.class)
+                                        // submit(Runnable)
+                                        .on(ElementMatchers.named("submit")
+                                                .and(ElementMatchers.takesArguments(1))
+                                                .and(ElementMatchers.takesArgument(0, Runnable.class))
+                                        )
+                        ).visit(
+                                Advice.to(ExecutorSubmitAdvice.class)
+                                        // submit(Callable)
+                                        .on(ElementMatchers.named("submit")
+                                                .and(ElementMatchers.takesArguments(1))
+                                                .and(ElementMatchers.takesArgument(0, Callable.class))
+                                        )
+                        ).visit(
+                                Advice.to(ExecutorSubmitAdvice.class)
+                                        // submit(Runnable, result)
+                                        .on(ElementMatchers.named("submit")
+                                                .and(ElementMatchers.takesArguments(2))
+                                                .and(ElementMatchers.takesArgument(0, Runnable.class))
+                                        )
+                        )
+                );
+
+        threadPoolExecutor.installOn(inst);
 
         System.out.println("Agent installed. Monitoring packages: " + packagePrefixes);
     }
