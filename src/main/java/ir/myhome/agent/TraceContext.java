@@ -1,30 +1,31 @@
 package ir.myhome.agent;
 
+import java.util.UUID;
+
 public final class TraceContext {
 
-    private static final ThreadLocal<String> TRACE_ID = new ThreadLocal<>();
+    private static final ThreadLocal<String> traceIdHolder = new ThreadLocal<>();
 
-    private TraceContext() {
-    }
-
-    public static void set(String traceId) {
-        TRACE_ID.set(traceId);
-    }
-
-    public static String get() {
-        return TRACE_ID.get();
-    }
-
-    public static String getOrCreate() {
-        String t = TRACE_ID.get();
-        if (t == null) {
-            t = java.util.UUID.randomUUID().toString();
-            TRACE_ID.set(t);
-        }
-        return t;
-    }
-
+    //آزاد کردن ThreadLocal ضروری است (به‌خصوص ThreadPool).
     public static void clear() {
-        TRACE_ID.remove();
+        traceIdHolder.remove();
+    }
+
+    //همیشه یک TraceId ساختارمند می‌دهد
+    public static String ensure() {
+        String id = traceIdHolder.get();
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+            traceIdHolder.set(id);
+        }
+        return id;
+    }
+
+    public static String getTraceId() {
+        return traceIdHolder.get();
+    }
+
+    public static void setTraceId(String id) {
+        traceIdHolder.set(id);
     }
 }

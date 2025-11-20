@@ -7,42 +7,28 @@ import java.util.UUID;
 public class TimingAdvice {
 
     @Advice.OnMethodEnter
-    static long onEnter() {
-        return System.nanoTime();
+    static void onEnter() {
+        if (TraceContext.getTraceId() == null) {
+            TraceContext.setTraceId(UUID.randomUUID().toString());
+        }
+        System.out.println("TRACE_ENTER=" + TraceContext.getTraceId());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     static void onExit(@Advice.Origin("#t.#m") String method,
-                       @Advice.Enter long startTime,
                        @Advice.Thrown Throwable thrown) {
-        try {
-            long durationMs = (System.nanoTime() - startTime) / 1_000_000L;
-            String traceId = TraceContext.get();
-            if (traceId == null)
-                traceId = UUID.randomUUID().toString();
+        String traceId = TraceContext.getTraceId();
+        if (traceId == null) traceId = UUID.randomUUID().toString();
 
-            String spanId = UUID.randomUUID().toString();
-            String status = (thrown == null) ? "SUCCESS" : "ERROR";
+        String status = (thrown == null) ? "SUCCESS" : "ERROR";
+        String spanId = UUID.randomUUID().toString();
 
-            String json = String.format(
-                    "{\"traceId\":\"%s\",\"spanId\":\"%s\",\"parentId\":null,\"service\":\"%s\",\"endpoint\":\"%s\",\"startEpochMs\":%d,\"durationMs\":%d,\"status\":\"%s\"}",
-                    traceId,
-                    spanId,
-                    "unknown-service",
-                    escapeJson(method),
-                    System.currentTimeMillis(),
-                    durationMs,
-                    status
-            );
+        System.out.printf("TRACE_EXIT traceId=%s, spanId=%s, method=%s, status=%s%n",
+                traceId, spanId, method, status);
 
-            AgentMain.enqueueSpan(json);
-        } catch (Throwable t) {
-            // swallow
-        }
-    }
-
-    private static String escapeJson(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+        // enqueue JSON if needed
+        String json = String.format("{\"traceId\":\"%s\",\"spanId\":\"%s\",\"endpoint\":\"%s\",\"status\":\"%s\"}",
+                traceId, spanId, method, status);
+        AgentMain.enqueueSpan(json);
     }
 }
