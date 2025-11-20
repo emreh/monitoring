@@ -22,6 +22,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+
 /**
  * Minimal Java Agent (PoC)
  * - Instruments methods in packages provided (default: ir.myhome.service)
@@ -124,6 +127,13 @@ public class AgentMain {
                                             .and(net.bytebuddy.matcher.ElementMatchers.not(net.bytebuddy.matcher.ElementMatchers.isConstructor()))
                                     )
                             )
+                    );
+
+            agentBuilder = agentBuilder.type((type) -> type.getName().equals("ir.myhome.service.CalculatorService"))
+                    .transform((builder, typeDescription, classLoader, module, protectionDomain) ->
+                            builder.visit(Advice.to(CalcAdvice.class).on(
+                                    named("add").and(takesArguments(2))
+                            ))
                     );
 
             agentBuilder.installOn(inst);
