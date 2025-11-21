@@ -1,0 +1,16 @@
+discovery:
+  packages:
+    - "ir.myhome.spring.controller"
+    - "ir.myhome.spring.service"
+  threshold: 6
+runtime:
+  controlServer:
+    enabled: true
+    port: 9191
+cache:
+  ttlSeconds: 3600
+exporter:
+  capacity: 10000
+  batchSize: 20
+  batchIntervalMs: 2000
+  collectorUrl: "http://collector:8080/spans"

@@ -12,7 +12,7 @@
         <maven.compiler.source>24</maven.compiler.source>
         <maven.compiler.target>24</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <mainClass>ir.myhome.agent.AgentMain</mainClass>
+        <mainClass>ir.myhome.agent.instrumentation.AgentMain</mainClass>
     </properties>
 
     <dependencies>
@@ -53,8 +53,8 @@
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>${mainClass}</mainClass>
                                     <manifestEntries>
-                                        <Premain-Class>ir.myhome.agent.AgentMain</Premain-Class>
-                                        <Agent-Class>ir.myhome.agent.AgentMain</Agent-Class>
+                                        <Premain-Class>ir.myhome.agent.instrumentation.AgentMain</Premain-Class>
+                                        <Agent-Class>ir.myhome.agent.instrumentation.AgentMain</Agent-Class>
                                         <Can-Redefine-Classes>true</Can-Redefine-Classes>
                                         <Can-Retransform-Classes>true</Can-Retransform-Classes>
                                     </manifestEntries>
