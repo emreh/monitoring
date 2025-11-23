@@ -16,19 +16,28 @@ public class TimingAdvice {
         String parentId = TraceState.peekSpan();
         String spanId = UUID.randomUUID().toString();
         TraceState.pushSpan(spanId);
-        System.out.println("[TimingAdvice] ENTER -> " + origin + " thread=" + Thread.currentThread().getName() + " traceId=" + traceId + " parent=" + parentId + " spanId=" + spanId);
+
+        // optional log for debugging
+        System.out.println("[TimingAdvice] ENTER -> " + origin + " thread=" + Thread.currentThread().getName() +
+                " traceId=" + traceId + " parent=" + parentId + " spanId=" + spanId);
+
         return System.currentTimeMillis();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void onExit(@Advice.Origin("#t.#m") String origin, @Advice.Enter long startMs, @Advice.Thrown Throwable thrown) {
+    public static void onExit(@Advice.Origin("#t.#m") String origin,
+                              @Advice.Enter long startMs,
+                              @Advice.Thrown Throwable thrown) {
         try {
             long duration = Math.max(0, System.currentTimeMillis() - startMs);
             String spanId = TraceState.peekSpan();
             String parentId = null;
+
             if (spanId != null) {
+                // temporarily pop to see parent, then push back
                 TraceState.popSpan();
                 parentId = TraceState.peekSpan();
+                // restore popped span (spanId) to remain as current for the final pop
                 if (spanId != null) TraceState.pushSpan(spanId);
             }
 
@@ -38,10 +47,11 @@ public class TimingAdvice {
 
             if (exporter != null) exporter.export(s);
 
+            // final cleanup: pop the span we pushed on enter
             TraceState.popSpan();
 
         } catch (Throwable t) {
-            // swallow
+            // swallow to avoid breaking application
         }
     }
 }

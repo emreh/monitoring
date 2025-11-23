@@ -23,6 +23,9 @@ public final class Span {
     }
 
     public void end() {
-        this.durationMs = System.currentTimeMillis() - this.startEpochMs;
+        this.durationMs = Math.max(0, System.currentTimeMillis() - this.startEpochMs);
+
+        if (this.status == null)
+            this.status = "OK";
     }
 }

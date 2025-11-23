@@ -9,7 +9,7 @@ public final class SpanExporter {
     private final ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
     private final int capacity;
     private final int batchSize;
-    private final String collectorUrl; // در این نسخه نمونه است
+    private final String collectorUrl;
 
     public SpanExporter(int capacity, int batchSize, String collectorUrl) {
         this.capacity = capacity;
@@ -18,14 +18,15 @@ public final class SpanExporter {
     }
 
     public void export(Span s) {
-        if (s == null) return;
+        if (s == null)
+            return;
 
         String json = JsonSerializer.toJson(s);
 
         if (queue.size() < capacity) {
             queue.add(json);
         } else {
-            // drop oldest (simple policy)
+            // simple drop-oldest policy
             queue.poll();
             queue.add(json);
         }
@@ -43,11 +44,11 @@ public final class SpanExporter {
         return out;
     }
 
-    // نمونه ارسال: اینجا فقط چاپ می‌کنیم. در production باید HTTP POST شود.
+    // نمونه: فقط چاپ می‌شود؛ در محیط production باید HTTP POST انجام شود
     public void postJsonArray(String[] items) {
-        if (items == null || items.length == 0) return;
+        if (items == null || items.length == 0)
+            return;
 
-        // ساخت آرایهٔ json ساده
         StringBuilder sb = new StringBuilder();
         sb.append("[");
 

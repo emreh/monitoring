@@ -1,9 +1,8 @@
 package ir.myhome.agent;
 
 import ir.myhome.agent.core.Span;
-import ir.myhome.agent.core.SpanExporter;
 import ir.myhome.agent.core.TraceState;
-import ir.myhome.agent.instrumentation.ExecutorTraceAdvice;
+import ir.myhome.agent.instrumentation.advice.ExecutorTraceAdvice;
 
 public class TraceAwareRunnable implements Runnable {
 
@@ -19,11 +18,9 @@ public class TraceAwareRunnable implements Runnable {
 
     @Override
     public void run() {
-        // ۱) بازیابی context
         if (traceId != null) TraceState.setTraceId(traceId);
         if (parentSpanId != null) TraceState.pushSpan(parentSpanId);
 
-        // ۲) ساخت span
         String spanId = java.util.UUID.randomUUID().toString();
         TraceState.pushSpan(spanId);
         long start = System.currentTimeMillis();
@@ -32,22 +29,14 @@ public class TraceAwareRunnable implements Runnable {
             delegate.run();
         } finally {
             long duration = System.currentTimeMillis() - start;
-
-            Span span = new Span(
-                    TraceState.getTraceId(),
-                    spanId,
-                    parentSpanId,
-                    "unknown-service",
-                    "executor-task",
-                    start
-            );
+            Span span = new Span(TraceState.getTraceId(), spanId, parentSpanId, "unknown-service", "executor-task", start);
             span.durationMs = duration;
+            span.status = "SUCCESS";
 
-            // ۳) بدون reflection — مستقیم از Advice
-            SpanExporter ex = ExecutorTraceAdvice.exporter;
-            if (ex != null) ex.export(span);
+            if (ExecutorTraceAdvice.exporter != null) {
+                ExecutorTraceAdvice.exporter.export(span);
+            }
 
-            // ۴) cleanup
             TraceState.popSpan();
             if (parentSpanId != null) TraceState.popSpan();
         }

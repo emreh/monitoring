@@ -1,9 +1,8 @@
 package ir.myhome.agent;
 
 import ir.myhome.agent.core.Span;
-import ir.myhome.agent.core.SpanExporter;
 import ir.myhome.agent.core.TraceState;
-import ir.myhome.agent.instrumentation.ExecutorTraceAdvice;
+import ir.myhome.agent.instrumentation.advice.ExecutorTraceAdvice;
 
 import java.util.concurrent.Callable;
 
@@ -21,35 +20,32 @@ public class TraceAwareCallable<V> implements Callable<V> {
 
     @Override
     public V call() throws Exception {
+        if (traceId != null)
+            TraceState.setTraceId(traceId);
 
-        if (traceId != null) TraceState.setTraceId(traceId);
-        if (parentSpanId != null) TraceState.pushSpan(parentSpanId);
+        if (parentSpanId != null)
+            TraceState.pushSpan(parentSpanId);
 
         String spanId = java.util.UUID.randomUUID().toString();
         TraceState.pushSpan(spanId);
         long start = System.currentTimeMillis();
 
         try {
-            return delegate.call();
-        } finally {
-
+            V out = delegate.call();
             long duration = System.currentTimeMillis() - start;
-
-            Span span = new Span(
-                    TraceState.getTraceId(),
-                    spanId,
-                    parentSpanId,
-                    "unknown-service",
-                    "executor-task",
-                    start
-            );
+            Span span = new Span(TraceState.getTraceId(), spanId, parentSpanId, "unknown-service", "executor-task", start);
             span.durationMs = duration;
+            span.status = "SUCCESS";
 
-            SpanExporter ex = ExecutorTraceAdvice.exporter;
-            if (ex != null) ex.export(span);
-
+            if (ExecutorTraceAdvice.exporter != null) {
+                ExecutorTraceAdvice.exporter.export(span);
+            }
+            return out;
+        } finally {
             TraceState.popSpan();
-            if (parentSpanId != null) TraceState.popSpan();
+
+            if (parentSpanId != null)
+                TraceState.popSpan();
         }
     }
 }
