@@ -12,6 +12,9 @@ public final class Span {
     public long durationMs;
     public String status;
 
+    // جدید: فیلدی جهت کانتر یا پیام خطا (برای مرحله ۲ مفید)
+    public String errorMessage;
+
     public Span(String traceId, String spanId, String parentId, String service, String endpoint, long startEpochMs) {
         this.traceId = traceId;
         this.spanId = spanId;
@@ -24,8 +27,11 @@ public final class Span {
 
     public void end() {
         this.durationMs = Math.max(0, System.currentTimeMillis() - this.startEpochMs);
+        if (this.status == null) this.status = "OK";
+    }
 
-        if (this.status == null)
-            this.status = "OK";
+    public void markError(String msg) {
+        this.status = "ERROR";
+        this.errorMessage = msg;
     }
 }

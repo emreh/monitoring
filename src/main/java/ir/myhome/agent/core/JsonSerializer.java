@@ -5,20 +5,38 @@ public final class JsonSerializer {
     public static String toJson(Span s) {
         StringBuilder sb = new StringBuilder();
         sb.append("{");
-        sb.append("\"traceId\":\"").append(escape(s.traceId)).append("\",");
-        sb.append("\"spanId\":\"").append(escape(s.spanId)).append("\",");
-        sb.append("\"parentId\":").append(s.parentId == null ? "null" : ("\"" + escape(s.parentId) + "\"")).append(",");
-        sb.append("\"service\":\"").append(escape(s.service)).append("\",");
-        sb.append("\"endpoint\":\"").append(escape(s.endpoint)).append("\",");
+
+        append(sb, "traceId", s.traceId);
+        append(sb, "spanId", s.spanId);
+        append(sb, "parentId", s.parentId);
+        append(sb, "service", s.service);
+        append(sb, "endpoint", s.endpoint);
+
         sb.append("\"startEpochMs\":").append(s.startEpochMs).append(",");
         sb.append("\"durationMs\":").append(s.durationMs).append(",");
-        sb.append("\"status\":\"").append(escape(s.status)).append("\"");
+        append(sb, "status", s.status);
+
+        // جدید: پیام خطا
+        if (s.errorMessage != null) {
+            append(sb, "errorMessage", s.errorMessage);
+        }
+
+        // آخرین کاما را حذف کنیم اگر بود
+        if (sb.charAt(sb.length() - 1) == ',') sb.setLength(sb.length() - 1);
+
         sb.append("}");
         return sb.toString();
     }
 
+    private static void append(StringBuilder sb, String key, String value) {
+        if (value == null) return;
+
+        sb.append("\"").append(key).append("\":\"").append(escape(value)).append("\",");
+    }
+
     private static String escape(String s) {
         if (s == null) return "";
+
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 }
