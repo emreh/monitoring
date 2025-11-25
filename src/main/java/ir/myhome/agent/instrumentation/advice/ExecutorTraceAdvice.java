@@ -1,32 +1,18 @@
 package ir.myhome.agent.instrumentation.advice;
 
-import ir.myhome.agent.core.SpanExporter;
-import ir.myhome.agent.core.TraceState;
+import ir.myhome.agent.context.TraceAwareRunnable;
+import ir.myhome.agent.core.TraceContextHolder;
+import ir.myhome.agent.core.TraceContextSnapshot;
 import net.bytebuddy.asm.Advice;
 
-import java.util.concurrent.Callable;
+public final class ExecutorTraceAdvice {
 
-public class ExecutorTraceAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void wrapRunnable(@Advice.Argument(value = 0, readOnly = false) Runnable r) {
+        if (r == null) return;
 
-    // exporter is injected by AgentMain
-    public static volatile SpanExporter exporter;
+        TraceContextSnapshot snap = TraceContextHolder.capture();
 
-    public static void setExporter(SpanExporter e) {
-        exporter = e;
-    }
-
-    // advice that wraps the first argument (Runnable/Callable) before submit/execute
-    @Advice.OnMethodEnter
-    public static void onEnter(@Advice.Argument(value = 0, readOnly = false) Object task) {
-        String traceId = TraceState.getTraceId();
-        String parentSpan = TraceState.peekSpan();
-
-        if (task instanceof Runnable && !(task instanceof ir.myhome.agent.TraceAwareRunnable)) {
-            task = new ir.myhome.agent.TraceAwareRunnable((Runnable) task, traceId, parentSpan);
-        } else if (task instanceof Callable && !(task instanceof ir.myhome.agent.TraceAwareCallable)) {
-            task = new ir.myhome.agent.TraceAwareCallable<>((Callable<?>) task, traceId, parentSpan);
-        }
-
-        // ByteBuddy will set the argument to this new wrapper (readOnly=false)
+        r = new TraceAwareRunnable(r, snap);
     }
 }

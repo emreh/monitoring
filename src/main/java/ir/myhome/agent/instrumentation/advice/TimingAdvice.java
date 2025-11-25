@@ -1,57 +1,57 @@
 package ir.myhome.agent.instrumentation.advice;
 
+import ir.myhome.agent.bootstrap.ExporterHolder;
 import ir.myhome.agent.core.Span;
-import ir.myhome.agent.core.SpanExporter;
-import ir.myhome.agent.core.TraceState;
+import ir.myhome.agent.core.TraceContextHolder;
+import ir.myhome.agent.exporter.SpanExporter;
 import net.bytebuddy.asm.Advice;
 
 import java.util.UUID;
 
-public class TimingAdvice {
-    public static volatile SpanExporter exporter;
+public final class TimingAdvice {
 
-    @Advice.OnMethodEnter
-    public static long onEnter(@Advice.Origin("#t.#m") String origin) {
-        String traceId = TraceState.ensureTraceId();
-        String parentId = TraceState.peekSpan();
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void enter(@Advice.Origin("#t.#m") String signature, @Advice.Local("spanRef") Span[] spanRef) {
+        String traceId = TraceContextHolder.currentTraceId();
+
+        if (traceId == null) traceId = UUID.randomUUID().toString();
+
         String spanId = UUID.randomUUID().toString();
-        TraceState.pushSpan(spanId);
+        String parentId = TraceContextHolder.currentSpanId();
 
-        // optional log for debugging
-        System.out.println("[TimingAdvice] ENTER -> " + origin + " thread=" + Thread.currentThread().getName() +
-                " traceId=" + traceId + " parent=" + parentId + " spanId=" + spanId);
+        TraceContextHolder.pushSpan(spanId, traceId);
 
-        return System.currentTimeMillis();
+        Span span = new Span(traceId, spanId, parentId, extractService(signature), extractEndpoint(signature), System.currentTimeMillis());
+        spanRef[0] = span;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void onExit(@Advice.Origin("#t.#m") String origin,
-                              @Advice.Enter long startMs,
-                              @Advice.Thrown Throwable thrown) {
-        try {
-            long duration = Math.max(0, System.currentTimeMillis() - startMs);
-            String spanId = TraceState.peekSpan();
-            String parentId = null;
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void exit(@Advice.Thrown Throwable thrown, @Advice.Local("spanRef") Span[] spanRef) {
 
-            if (spanId != null) {
-                // temporarily pop to see parent, then push back
-                TraceState.popSpan();
-                parentId = TraceState.peekSpan();
-                // restore popped span (spanId) to remain as current for the final pop
-                if (spanId != null) TraceState.pushSpan(spanId);
-            }
+        if (spanRef == null || spanRef.length == 0) return;
 
-            Span s = new Span(TraceState.getTraceId(), spanId, parentId, "unknown-service", origin, startMs);
-            s.durationMs = duration;
-            s.status = thrown == null ? "SUCCESS" : "ERROR";
+        Span span = spanRef[0];
 
-            if (exporter != null) exporter.export(s);
+        if (span == null) return;
 
-            // final cleanup: pop the span we pushed on enter
-            TraceState.popSpan();
+        if (thrown != null) span.markError(thrown.getMessage());
+        span.end();
 
-        } catch (Throwable t) {
-            // swallow to avoid breaking application
+        TraceContextHolder.popSpan();
+
+        SpanExporter exporter = ExporterHolder.getExporter();
+        if (exporter != null) {
+            exporter.export(span);
         }
+    }
+
+    private static String extractService(String sig) {
+        if (sig == null) return "unknown";
+        int idx = sig.indexOf('.');
+        return idx > 0 ? sig.substring(0, idx) : sig;
+    }
+
+    private static String extractEndpoint(String sig) {
+        return sig == null ? "unknown" : sig;
     }
 }

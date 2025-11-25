@@ -2,18 +2,16 @@ package ir.myhome.agent.core;
 
 public final class Span {
 
-    public final String traceId;
-    public final String spanId;
-    public final String parentId;
-    public final String service;
-    public final String endpoint;
+    private final String traceId;
+    private final String spanId;
+    private final String parentId;
+    private final String service;
+    private final String endpoint;
 
     public final long startEpochMs;
     public long durationMs;
-    public String status;
-
-    // جدید: فیلدی جهت کانتر یا پیام خطا (برای مرحله ۲ مفید)
-    public String errorMessage;
+    public String status = "OK";
+    public String errorMessage = null;
 
     public Span(String traceId, String spanId, String parentId, String service, String endpoint, long startEpochMs) {
         this.traceId = traceId;
@@ -22,16 +20,36 @@ public final class Span {
         this.service = service;
         this.endpoint = endpoint;
         this.startEpochMs = startEpochMs;
-        this.status = "OK";
     }
 
     public void end() {
         this.durationMs = Math.max(0, System.currentTimeMillis() - this.startEpochMs);
-        if (this.status == null) this.status = "OK";
+        if (status == null) status = "OK";
     }
 
-    public void markError(String msg) {
+    public void markError(String message) {
         this.status = "ERROR";
-        this.errorMessage = msg;
+        this.errorMessage = message;
+    }
+
+    // getters
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public String getSpanId() {
+        return spanId;
+    }
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    public String getService() {
+        return service;
+    }
+
+    public String getEndpoint() {
+        return endpoint;
     }
 }
