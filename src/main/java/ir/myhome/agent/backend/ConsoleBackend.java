@@ -10,8 +10,7 @@ public final class ConsoleBackend implements SpanExporterBackend {
     public void exportBatch(List<String> jsonBatch) {
         if (jsonBatch == null || jsonBatch.isEmpty()) return;
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("[");
+        StringBuilder sb = new StringBuilder("[");
 
         for (int i = 0; i < jsonBatch.size(); i++) {
             if (i > 0) sb.append(",");
@@ -19,6 +18,6 @@ public final class ConsoleBackend implements SpanExporterBackend {
         }
 
         sb.append("]");
-        System.out.println("[ConsoleBackend] " + sb);
+        System.out.println("[ConsoleBackend] " + sb.toString());
     }
 }

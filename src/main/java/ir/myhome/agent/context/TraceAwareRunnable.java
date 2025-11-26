@@ -8,9 +8,9 @@ public final class TraceAwareRunnable implements Runnable {
     private final Runnable delegate;
     private final TraceContextSnapshot snapshot;
 
-    public TraceAwareRunnable(Runnable delegate, ir.myhome.agent.core.TraceContextSnapshot snapshot) {
+    public TraceAwareRunnable(Runnable delegate, TraceContextSnapshot snapshot) {
         this.delegate = delegate;
-        this.snapshot = snapshot == null ? ir.myhome.agent.core.TraceContextSnapshot.EMPTY : snapshot;
+        this.snapshot = snapshot == null ? TraceContextSnapshot.EMPTY : snapshot;
     }
 
     @Override

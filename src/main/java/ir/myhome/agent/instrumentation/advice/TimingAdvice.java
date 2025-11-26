@@ -27,7 +27,6 @@ public final class TimingAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(@Advice.Thrown Throwable thrown, @Advice.Local("spanRef") Span[] spanRef) {
-
         if (spanRef == null || spanRef.length == 0) return;
 
         Span span = spanRef[0];
@@ -35,14 +34,13 @@ public final class TimingAdvice {
         if (span == null) return;
 
         if (thrown != null) span.markError(thrown.getMessage());
-        span.end();
 
+        span.end();
         TraceContextHolder.popSpan();
 
         SpanExporter exporter = ExporterHolder.getExporter();
-        if (exporter != null) {
-            exporter.export(span);
-        }
+
+        if (exporter != null) exporter.export(span);
     }
 
     private static String extractService(String sig) {

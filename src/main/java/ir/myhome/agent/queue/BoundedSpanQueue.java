@@ -8,8 +8,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class BoundedSpanQueue implements SpanQueue {
 
     private final ConcurrentLinkedQueue<Span> q = new ConcurrentLinkedQueue<>();
-    private final int capacity;
     private final AtomicInteger size = new AtomicInteger(0);
+    private final int capacity;
 
     public BoundedSpanQueue(int capacity) {
         this.capacity = Math.max(1, capacity);
@@ -23,7 +23,6 @@ public final class BoundedSpanQueue implements SpanQueue {
             int s = size.get();
 
             if (s >= capacity) {
-                // drop oldest
                 Span polled = q.poll();
                 if (polled != null) size.decrementAndGet();
                 else return false;

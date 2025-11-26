@@ -58,14 +58,14 @@ public final class TraceContextHolder {
 
         if (c == null || c.spanStack.isEmpty()) return TraceContextSnapshot.EMPTY;
 
-        String[] arr = c.spanStack.toArray(new String[0]); // top-first
-
+        String[] arr = c.spanStack.toArray(new String[0]);
         return new TraceContextSnapshot(c.traceId, arr);
     }
 
     public static TraceContextSnapshot restore(TraceContextSnapshot snapshot) {
         LocalCtx prev = LOCAL.get();
         TraceContextSnapshot prevSnap;
+
         if (prev == null || prev.spanStack.isEmpty()) prevSnap = TraceContextSnapshot.EMPTY;
         else prevSnap = new TraceContextSnapshot(prev.traceId, prev.spanStack.toArray(new String[0]));
 

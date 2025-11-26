@@ -11,17 +11,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class SpanExporter {
 
     private final ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
+    private final AtomicInteger size = new AtomicInteger(0);
     private final int capacity;
     private final int batchSize;
-    private volatile String collectorUrl;
     private final SpanExporterBackend backend;
-
     private final AtomicInteger dropped = new AtomicInteger(0);
 
     public SpanExporter(int capacity, int batchSize, String collectorUrl, SpanExporterBackend backend) {
         this.capacity = Math.max(1, capacity);
         this.batchSize = Math.max(1, batchSize);
-        this.collectorUrl = collectorUrl;
         this.backend = backend;
     }
 
@@ -30,12 +28,21 @@ public final class SpanExporter {
 
         String json = JsonSerializer.toJson(s);
 
-        if (queue.size() >= capacity) {
-            queue.poll();
-            dropped.incrementAndGet();
+        while (true) {
+            int cur = size.get();
+            if (cur >= capacity) {
+                String polled = queue.poll();
+                if (polled != null) {
+                    size.decrementAndGet();
+                    dropped.incrementAndGet();
+                } else break;
+            } else {
+                if (size.compareAndSet(cur, cur + 1)) {
+                    queue.add(json);
+                    return;
+                }
+            }
         }
-
-        queue.add(json);
     }
 
     public List<String> drainBatch() {
@@ -45,6 +52,7 @@ public final class SpanExporter {
             String v = queue.poll();
             if (v == null) break;
             out.add(v);
+            size.decrementAndGet();
         }
 
         return out;

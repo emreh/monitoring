@@ -1,14 +1,14 @@
 agent:
   exporter:
-    type: console       # http | console | none
+    type: console # http | console | none
     batchSize: 10
     capacity: 10000
     endpoint: "http://localhost:8080/collect"
 
 instrumentation:
   executor: true
-  completableFuture: true
-  httpClient: true
+  app: true
+  httpClient: false
   jdbc: false
   scheduled: false
-  reactive: false     # Reactor / Vert.x / Akka
+  reactive: false # Reactor / Vert.x / Akka

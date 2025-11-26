@@ -32,7 +32,6 @@ public final class Span {
         this.errorMessage = message;
     }
 
-    // getters
     public String getTraceId() {
         return traceId;
     }

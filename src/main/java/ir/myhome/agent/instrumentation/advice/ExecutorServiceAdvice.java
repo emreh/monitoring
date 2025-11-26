@@ -14,6 +14,7 @@ public final class ExecutorServiceAdvice {
         if (c == null) return;
 
         TraceContextSnapshot snap = TraceContextHolder.capture();
+
         c = new TraceAwareCallable<>(c, snap);
     }
 }
