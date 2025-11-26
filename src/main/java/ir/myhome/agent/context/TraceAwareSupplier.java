@@ -3,24 +3,24 @@ package ir.myhome.agent.context;
 import ir.myhome.agent.core.TraceContextHolder;
 import ir.myhome.agent.core.TraceContextSnapshot;
 
-import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
-public final class TraceAwareCallable<V> implements Callable<V> {
+public final class TraceAwareSupplier<T> implements Supplier<T> {
 
-    private final Callable<V> delegate;
+    private final Supplier<T> delegate;
     private final TraceContextSnapshot snap;
 
-    public TraceAwareCallable(Callable<V> delegate, TraceContextSnapshot snap) {
+    public TraceAwareSupplier(Supplier<T> delegate, TraceContextSnapshot snap) {
         this.delegate = delegate;
         this.snap = snap;
     }
 
     @Override
-    public V call() throws Exception {
+    public T get() {
         TraceContextSnapshot prev = TraceContextHolder.restore(snap);
 
         try {
-            return delegate.call();
+            return delegate.get();
         } finally {
             TraceContextHolder.restore(prev);
         }

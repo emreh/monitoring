@@ -6,16 +6,16 @@ import ir.myhome.agent.core.TraceContextSnapshot;
 public final class TraceAwareRunnable implements Runnable {
 
     private final Runnable delegate;
-    private final TraceContextSnapshot snapshot;
+    private final TraceContextSnapshot snap;
 
-    public TraceAwareRunnable(Runnable delegate, TraceContextSnapshot snapshot) {
+    public TraceAwareRunnable(Runnable delegate, TraceContextSnapshot snap) {
         this.delegate = delegate;
-        this.snapshot = snapshot == null ? TraceContextSnapshot.EMPTY : snapshot;
+        this.snap = snap;
     }
 
     @Override
     public void run() {
-        TraceContextSnapshot prev = TraceContextHolder.restore(snapshot);
+        TraceContextSnapshot prev = TraceContextHolder.restore(snap);
 
         try {
             delegate.run();

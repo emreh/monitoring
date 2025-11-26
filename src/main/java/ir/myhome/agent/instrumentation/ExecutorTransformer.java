@@ -21,14 +21,9 @@ public final class ExecutorTransformer implements AgentBuilder.Transformer {
             ProtectionDomain protectionDomain) {
 
         return builder
-                .method(named("execute")
-                        .and(takesArguments(1))
-                        .and(takesArgument(0, Runnable.class)))
+                .method(named("execute").and(takesArguments(1)).and(takesArgument(0, Runnable.class)))
                 .intercept(net.bytebuddy.asm.Advice.to(ExecutorTraceAdvice.class))
-
-                .method(named("submit")
-                        .and(takesArguments(1))
-                        .and(takesArgument(0, Runnable.class)))
+                .method(named("submit").and(takesArguments(1)).and(takesArgument(0, Runnable.class)))
                 .intercept(net.bytebuddy.asm.Advice.to(ExecutorTraceAdvice.class));
     }
 }

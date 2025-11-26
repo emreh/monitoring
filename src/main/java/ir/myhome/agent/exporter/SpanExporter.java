@@ -1,6 +1,5 @@
 package ir.myhome.agent.exporter;
 
-import ir.myhome.agent.core.JsonSerializer;
 import ir.myhome.agent.core.Span;
 
 import java.util.ArrayList;
