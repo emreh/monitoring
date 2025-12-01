@@ -1,4 +1,5 @@
 agent:
+  DEBUG: false
   exporter:
     type: console # http | console | none
     batchSize: 10

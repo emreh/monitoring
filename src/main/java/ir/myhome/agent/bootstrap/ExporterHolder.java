@@ -1,18 +1,19 @@
 package ir.myhome.agent.bootstrap;
 
-import ir.myhome.agent.exporter.SpanExporter;
+import ir.myhome.agent.exporter.Exporter;
 
 public final class ExporterHolder {
-    private static volatile SpanExporter exporter;
+
+    private static volatile Exporter exporter;
 
     private ExporterHolder() {
     }
 
-    public static void setExporter(SpanExporter e) {
+    public static void set(Exporter e) {
         exporter = e;
     }
 
-    public static SpanExporter getExporter() {
+    public static Exporter get() {
         return exporter;
     }
 }

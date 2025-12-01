@@ -1,22 +1,13 @@
 package ir.myhome.agent.instrumentation;
 
 import ir.myhome.agent.instrumentation.advice.HttpClientAdvice;
-import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.matcher.ElementMatchers;
-import net.bytebuddy.utility.JavaModule;
 
-import java.security.ProtectionDomain;
+import static net.bytebuddy.matcher.ElementMatchers.named;
 
-public final class HttpClientTransformer implements AgentBuilder.Transformer {
+public final class HttpClientTransformer {
 
-    @Override
-    public DynamicType.Builder<?> transform(DynamicType.Builder<?> builder, TypeDescription typeDescription, ClassLoader classLoader, JavaModule module, ProtectionDomain protectionDomain) {
-
-        return builder
-                .method(ElementMatchers.named("connect"))
-                .intercept(Advice.to(HttpClientAdvice.class));
+    public static AgentBuilder.Transformer transformer() {
+        return (builder, td, cl, module, protectionDomain) -> builder.method(named("send").or(named("sendAsync"))).intercept(net.bytebuddy.asm.Advice.to(HttpClientAdvice.class));
     }
 }

@@ -12,7 +12,7 @@ public final class TraceAwareSupplier<T> implements Supplier<T> {
 
     public TraceAwareSupplier(Supplier<T> delegate, TraceContextSnapshot snap) {
         this.delegate = delegate;
-        this.snap = snap;
+        this.snap = snap == null ? TraceContextSnapshot.EMPTY : snap;
     }
 
     @Override

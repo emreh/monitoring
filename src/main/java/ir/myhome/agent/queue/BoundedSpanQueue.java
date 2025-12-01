@@ -24,6 +24,7 @@ public final class BoundedSpanQueue implements SpanQueue {
 
             if (s >= capacity) {
                 Span polled = q.poll();
+
                 if (polled != null) size.decrementAndGet();
                 else return false;
             } else {
@@ -41,11 +42,11 @@ public final class BoundedSpanQueue implements SpanQueue {
 
         while (i < maxItems) {
             Span p = q.poll();
+
             if (p == null) break;
             buffer[i++] = p;
             size.decrementAndGet();
         }
-
         return i;
     }
 

@@ -1,14 +1,11 @@
 package ir.myhome.agent.instrumentation.advice;
 
-import ir.myhome.agent.context.TraceAwareCallable;
 import ir.myhome.agent.context.TraceAwareRunnable;
 import ir.myhome.agent.core.TraceContextHolder;
 import ir.myhome.agent.core.TraceContextSnapshot;
 import net.bytebuddy.asm.Advice;
 
-import java.util.concurrent.Callable;
-
-public final class ExecutorServiceAdvice {
+public final class ScheduledExecutorServiceAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrap(@Advice.AllArguments(readOnly = false) Object[] args) {
@@ -20,7 +17,6 @@ public final class ExecutorServiceAdvice {
             Object a = args[i];
 
             if (a instanceof Runnable) args[i] = new TraceAwareRunnable((Runnable) a, snap);
-            else if (a instanceof Callable) args[i] = new TraceAwareCallable<>((Callable<?>) a, snap);
         }
     }
 }
