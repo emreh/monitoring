@@ -1,4 +1,4 @@
-package ir.myhome.agent.bootstrap;
+package ir.myhome.agent.holder;
 
 import ir.myhome.agent.exporter.Exporter;
 import ir.myhome.agent.feature.FeatureFlagManager;
@@ -6,11 +6,19 @@ import ir.myhome.agent.queue.SpanQueue;
 
 public final class AgentHolder {
 
+    private static volatile FeatureFlagManager featureFlagManager;
     private static volatile SpanQueue spanQueue;
     private static volatile Exporter exporter;
-    private static volatile FeatureFlagManager featureFlagManager;
 
     private AgentHolder() {
+    }
+
+    public static void setFeatureFlagManager(FeatureFlagManager ffm) {
+        featureFlagManager = ffm;
+    }
+
+    public static FeatureFlagManager getFeatureFlagManager() {
+        return featureFlagManager;
     }
 
     public static void setSpanQueue(SpanQueue q) {
@@ -27,13 +35,5 @@ public final class AgentHolder {
 
     public static Exporter getExporter() {
         return exporter;
-    }
-
-    public static void setFeatureFlagManager(FeatureFlagManager f) {
-        featureFlagManager = f;
-    }
-
-    public static FeatureFlagManager getFeatureFlagManager() {
-        return featureFlagManager;
     }
 }

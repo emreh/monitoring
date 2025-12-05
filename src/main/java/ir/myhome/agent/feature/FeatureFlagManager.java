@@ -1,31 +1,28 @@
 package ir.myhome.agent.feature;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import ir.myhome.agent.config.AgentConfig;
 
 public final class FeatureFlagManager {
 
-    private final Map<String, Boolean> global = new ConcurrentHashMap<>();
-    private final Map<String, Map<String, Boolean>> perProject = new ConcurrentHashMap<>();
+    private final AgentConfig.InstrumentationConfig cfg;
 
-    public void setGlobal(String feature, boolean enabled) {
-        global.put(feature, enabled);
+    public FeatureFlagManager(AgentConfig.InstrumentationConfig cfg) {
+        this.cfg = cfg;
     }
 
-    public Boolean getGlobal(String feature) {
-        return global.get(feature);
+    public boolean executor() {
+        return cfg.executor;
     }
 
-    public boolean isEnabled(String feature, String projectId) {
-        if (projectId != null) {
-            Map<String, Boolean> m = perProject.get(projectId);
-            if (m != null && m.containsKey(feature)) return m.get(feature);
-        }
-        Boolean g = getGlobal(feature);
-        return g != null ? g : false;
+    public boolean jdbc() {
+        return cfg.jdbc;
     }
 
-    public void setProjectOverride(String projectId, String feature, boolean enabled) {
-        perProject.computeIfAbsent(projectId, k -> new ConcurrentHashMap<>()).put(feature, enabled);
+    public boolean httpClient() {
+        return cfg.httpClient;
+    }
+
+    public boolean timing() {
+        return cfg.timing;
     }
 }

@@ -8,16 +8,16 @@ import java.util.function.Supplier;
 public final class TraceAwareSupplier<T> implements Supplier<T> {
 
     private final Supplier<T> delegate;
-    private final TraceContextSnapshot snap;
+    private final TraceContextSnapshot snapshot;
 
-    public TraceAwareSupplier(Supplier<T> delegate, TraceContextSnapshot snap) {
+    public TraceAwareSupplier(Supplier<T> delegate, TraceContextSnapshot snapshot) {
         this.delegate = delegate;
-        this.snap = snap == null ? TraceContextSnapshot.EMPTY : snap;
+        this.snapshot = snapshot;
     }
 
     @Override
     public T get() {
-        TraceContextSnapshot prev = TraceContextHolder.restore(snap);
+        TraceContextSnapshot prev = TraceContextHolder.restore(snapshot);
 
         try {
             return delegate.get();

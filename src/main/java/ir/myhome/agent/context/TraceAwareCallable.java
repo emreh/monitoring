@@ -6,18 +6,17 @@ import ir.myhome.agent.core.TraceContextSnapshot;
 import java.util.concurrent.Callable;
 
 public final class TraceAwareCallable<V> implements Callable<V> {
-
     private final Callable<V> delegate;
-    private final TraceContextSnapshot snap;
+    private final TraceContextSnapshot snapshot;
 
-    public TraceAwareCallable(Callable<V> delegate, TraceContextSnapshot snap) {
+    public TraceAwareCallable(Callable<V> delegate, TraceContextSnapshot snapshot) {
         this.delegate = delegate;
-        this.snap = snap == null ? TraceContextSnapshot.EMPTY : snap;
+        this.snapshot = snapshot;
     }
 
     @Override
     public V call() throws Exception {
-        TraceContextSnapshot prev = TraceContextHolder.restore(snap);
+        TraceContextSnapshot prev = TraceContextHolder.restore(snapshot);
 
         try {
             return delegate.call();

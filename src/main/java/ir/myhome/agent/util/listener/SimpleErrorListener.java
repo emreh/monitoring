@@ -1,12 +1,13 @@
 package ir.myhome.agent.util.listener;
 
 import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.utility.JavaModule;
 
 import java.io.PrintStream;
 
-public class SimpleErrorListener extends AgentBuilder.Listener.Adapter {
-
+public final class SimpleErrorListener implements AgentBuilder.Listener {
     private final PrintStream out;
 
     public SimpleErrorListener(PrintStream out) {
@@ -14,8 +15,24 @@ public class SimpleErrorListener extends AgentBuilder.Listener.Adapter {
     }
 
     @Override
+    public void onTransformation(TypeDescription typeDescription, ClassLoader classLoader, JavaModule module, boolean loaded, DynamicType dynamicType) {
+        // no-op
+    }
+
+    @Override
     public void onError(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
         out.println("[Agent-Error] type=" + typeName + " : " + throwable.getMessage());
-        throwable.printStackTrace(out);
+    }
+
+    @Override
+    public void onDiscovery(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
+    }
+
+    @Override
+    public void onComplete(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
+    }
+
+    @Override
+    public void onIgnored(TypeDescription typeDescription, ClassLoader classLoader, JavaModule module, boolean loaded) {
     }
 }

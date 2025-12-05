@@ -1,12 +1,12 @@
 package ir.myhome.agent.queue;
 
-import ir.myhome.agent.core.Span;
-
 public interface SpanQueue {
 
-    boolean offer(Span span);
+    boolean offer(Object span);
 
-    int drainTo(Span[] buffer, int maxItems);
+    Object poll();
+
+    Object take() throws InterruptedException;
 
     int size();
 }

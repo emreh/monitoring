@@ -1,74 +1,81 @@
 package ir.myhome.agent.worker;
 
-import ir.myhome.agent.core.AgentConstants;
-import ir.myhome.agent.core.JsonSerializer;
-import ir.myhome.agent.core.Span;
 import ir.myhome.agent.exporter.Exporter;
 import ir.myhome.agent.queue.SpanQueue;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 
+/**
+ * BatchWorker:
+ * جمع‌آوری اسپن‌ها از صف و ارسال به Exporter در یک ترد جدا.
+ */
 public final class BatchWorker implements Runnable {
 
-    private final SpanQueue queue;
+    private final SpanQueue q;
     private final Exporter exporter;
     private final int batchSize;
-    private final long intervalMs;
+    private final int pollMillis;
 
-    public BatchWorker(SpanQueue queue, Exporter exporter, int batchSize, long intervalMs) {
-        this.queue = queue;
+    public BatchWorker(SpanQueue q, Exporter exporter, int batchSize, int pollMillis) {
+        this.q = q;
         this.exporter = exporter;
         this.batchSize = Math.max(1, batchSize);
-        this.intervalMs = Math.max(10, intervalMs);
+        this.pollMillis = Math.max(10, pollMillis);
     }
 
     @Override
     public void run() {
-        Span[] buffer = new Span[batchSize];
-        List<String> toSend = new ArrayList<>(batchSize);
-
+        List<Object> buffer = new ArrayList<>(batchSize);
         while (true) {
             try {
-                int taken = queue.drainTo(buffer, batchSize);
-                if (taken == 0) {
-                    // sleep a bit
-                    try {
-                        TimeUnit.MILLISECONDS.sleep(intervalMs);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-                    continue;
+                Object s = q.take();
+                if (s != null) buffer.add(s);
+
+                // drain up to batchSize
+                while (buffer.size() < batchSize) {
+                    Object x = q.poll();
+                    if (x == null) break;
+                    buffer.add(x);
                 }
 
-                toSend.clear();
-                for (int i = 0; i < taken; i++) {
-                    Span s = buffer[i];
-                    if (s != null) toSend.add(JsonSerializer.toJson(s));
-                    buffer[i] = null;
-                }
-
-                if (!toSend.isEmpty()) {
-                    try {
-                        exporter.export(toSend);
-                        if (AgentConstants.DEBUG)
-                            System.out.println("[BatchWorker] exported batch size=" + toSend.size());
-                    } catch (Throwable t) {
-                        System.err.println("[BatchWorker] exporter failed: " + t.getMessage());
+                if (!buffer.isEmpty()) {
+                    for (Object item : buffer) {
+                        try {
+                            exporter.export(toMap(item));
+                        } catch (Throwable t) {
+                            if (System.getProperty("agent.debug", "false").equals("true")) {
+                                System.err.println("[BatchWorker] export failed: " + t.getMessage());
+                            }
+                        }
                     }
+                    buffer.clear();
                 }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
             } catch (Throwable t) {
-                System.err.println("[BatchWorker] worker loop error: " + t.getMessage());
+                if (System.getProperty("agent.debug", "false").equals("true"))
+                    System.err.println("[BatchWorker] loop error: " + t.getMessage());
 
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(pollMillis);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     break;
                 }
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> toMap(Object spanObj) {
+        if (spanObj instanceof Map) return (Map<String, Object>) spanObj;
+
+        Map<String, Object> m = new HashMap<>();
+        m.put("span", spanObj);
+        return m;
     }
 }

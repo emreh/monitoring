@@ -1,11 +1,10 @@
 package ir.myhome.agent.exporter;
 
-import java.util.List;
+import java.util.Map;
 
 public interface Exporter {
 
-    void export(List<String> jsonBatch);
+    void export(Map<String, Object> span);
 
-    default void shutdown() {
-    }
+    void close();
 }

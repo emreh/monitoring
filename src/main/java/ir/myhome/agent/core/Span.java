@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class Span {
+
     public final String traceId;
     public final String spanId;
     public final String parentId;

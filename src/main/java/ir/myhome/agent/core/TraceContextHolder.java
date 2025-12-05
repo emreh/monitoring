@@ -2,7 +2,6 @@ package ir.myhome.agent.core;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.UUID;
 
 public final class TraceContextHolder {
 
@@ -48,9 +47,14 @@ public final class TraceContextHolder {
 
         if (c == null) return null;
 
-        if (c.traceId == null) c.traceId = UUID.randomUUID().toString();
+        if (c.traceId == null) c.traceId = generateTraceId();
 
         return c.traceId;
+    }
+
+    private static String generateTraceId() {
+        // cheap, bootstrap-safe trace id (avoid SecureRandom/UUID$Holder)
+        return Long.toHexString(System.nanoTime()) + "-" + Integer.toHexString(System.identityHashCode(Thread.currentThread()));
     }
 
     public static TraceContextSnapshot capture() {

@@ -1,15 +1,14 @@
-agent:
-  DEBUG: false
-  exporter:
-    type: console # http | console | none
-    batchSize: 10
-    capacity: 10000
-    endpoint: "http://localhost:8080/collect"
+debug: true
+
+exporter:
+  type: console
+  batchSize: 10
+  capacity: 10000
+  endpoint: "http://localhost:8080/collect"
 
 instrumentation:
   executor: true
-  app: true
-  httpClient: false
   jdbc: false
+  httpClient: false
   scheduled: false
-  reactive: false # Reactor / Vert.x / Akka
+  timing: true
