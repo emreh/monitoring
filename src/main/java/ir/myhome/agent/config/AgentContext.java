@@ -1,6 +1,4 @@
-package ir.myhome.agent.core;
-
-import ir.myhome.agent.config.AgentConfig;
+package ir.myhome.agent.config;
 
 public final class AgentContext {
     private static AgentConfig config;

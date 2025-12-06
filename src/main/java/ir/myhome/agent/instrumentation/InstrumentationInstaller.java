@@ -1,10 +1,7 @@
 package ir.myhome.agent.instrumentation;
 
 import ir.myhome.agent.config.AgentConfig;
-import ir.myhome.agent.instrumentation.advice.ExecutorServiceAdvice;
-import ir.myhome.agent.instrumentation.advice.JdbcAdvice;
-import ir.myhome.agent.instrumentation.advice.TimingAdviceEnter;
-import ir.myhome.agent.instrumentation.advice.TimingAdviceExit;
+import ir.myhome.agent.instrumentation.advice.*;
 import ir.myhome.agent.util.listener.SimpleErrorListener;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
@@ -29,8 +26,23 @@ public final class InstrumentationInstaller {
                 builder = builder.type(nameStartsWith("ir.myhome.spring.").and(nameContains("jdbc").or(nameContains("dao")).or(nameContains("repository")))).transform((b, td, cl, md, pd) -> b.method(named("execute").or(named("executeQuery")).or(named("executeUpdate"))).intercept(Advice.to(JdbcAdvice.class)));
             }
 
+            // درون InstrumentationInstaller.install(...)
             if (cfg.instrumentation.timing) {
-                builder = builder.type(nameStartsWith("ir.myhome.spring.")).transform((b, td, cl, md, pd) -> b.visit(Advice.to(TimingAdviceEnter.class).on(isMethod().and(not(isConstructor())).and(not(isAbstract()))))).transform((b, td, cl, md, pd) -> b.visit(Advice.to(TimingAdviceExit.class).on(isMethod().and(not(isConstructor())).and(not(isAbstract())))));
+                builder = builder
+                        .type(nameStartsWith("ir.myhome.spring."))
+                        .transform((b, typeDescription, classLoader, module, protectionDomain) -> {
+                            // matcher مشترک برای متدها (public non-static non-constructor non-abstract)
+                            var commonMatcher = isMethod()
+                                    .and(not(isConstructor()))
+                                    .and(not(isAbstract()))
+                                    .and(isPublic())
+                                    .and(not(isStatic()));
+
+                            // پیشنهادی: enter و exit را با هم نصب کن تا @Advice.Enter از enter به exit منتقل شود
+                            b = b.visit(Advice.to(TimingAdviceEnter.class, TimingAdviceExitDynamic.class).on(commonMatcher));
+
+                            return b;
+                        });
             }
 
             builder.installOn(inst);

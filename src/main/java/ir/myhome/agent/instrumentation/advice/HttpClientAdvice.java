@@ -1,10 +1,10 @@
 package ir.myhome.agent.instrumentation.advice;
 
 import ir.myhome.agent.core.Span;
-import ir.myhome.agent.core.TraceContext;
 import ir.myhome.agent.core.TraceContextHolder;
 import ir.myhome.agent.holder.AgentHolder;
 import ir.myhome.agent.util.JsonSerializer;
+import ir.myhome.agent.util.SpanIdGenerator;
 import net.bytebuddy.asm.Advice;
 
 import java.net.http.HttpRequest;
@@ -13,26 +13,28 @@ import java.net.http.HttpResponse;
 public final class HttpClientAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static Span enter(@Advice.Argument(0) HttpRequest request) {
+    public static void enter(@Advice.Argument(0) HttpRequest request, @Advice.Local("span") Span span) {
         try {
             String traceId = TraceContextHolder.currentTraceId();
-            String spanId = TraceContext.newId();
+            String spanId = SpanIdGenerator.nextId();
             String parent = TraceContextHolder.currentSpanId();
-            TraceContextHolder.pushSpan(spanId, traceId);
 
-            Span s = new Span(traceId, spanId, parent, "http-client", request == null ? "unknown" : request.uri().getPath(), System.currentTimeMillis());
+            span = new Span(traceId, spanId, parent, "http-client", request == null ? "unknown" : request.uri().getPath(), System.currentTimeMillis());
+            TraceContextHolder.pushSpan(span);
+
             if (request != null) {
-                s.addTag("http.method", request.method());
-                s.addTag("http.url", request.uri().toString());
+                span.addTag("http.method", request.method());
+                span.addTag("http.url", request.uri().toString());
             }
-            return s;
+
         } catch (Throwable t) {
-            return null;
+            // ignore
         }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter Span span, @Advice.Thrown Throwable thrown, @Advice.Return(readOnly = false) HttpResponse<?> response) {
+    public static void exit(@Advice.Local("span") Span span, @Advice.Thrown Throwable thrown, @Advice.Return(readOnly = false) HttpResponse<?> response) {
+
         if (span == null) return;
 
         try {

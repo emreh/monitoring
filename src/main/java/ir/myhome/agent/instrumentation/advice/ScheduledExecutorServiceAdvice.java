@@ -15,8 +15,9 @@ public final class ScheduledExecutorServiceAdvice {
 
         for (int i = 0; i < args.length; i++) {
             Object a = args[i];
-
-            if (a instanceof Runnable) args[i] = new TraceAwareRunnable((Runnable) a, snap);
+            if (a instanceof Runnable) {
+                args[i] = new TraceAwareRunnable((Runnable) a, snap);
+            }
         }
     }
 }

@@ -2,7 +2,7 @@ package ir.myhome.agent.bootstrap;
 
 import ir.myhome.agent.config.AgentConfig;
 import ir.myhome.agent.config.YamlUtil;
-import ir.myhome.agent.core.AgentContext;
+import ir.myhome.agent.config.AgentContext;
 import ir.myhome.agent.exporter.ConsoleExporter;
 import ir.myhome.agent.exporter.Exporter;
 import ir.myhome.agent.exporter.HttpExporter;

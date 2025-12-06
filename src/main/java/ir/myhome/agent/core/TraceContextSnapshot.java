@@ -1,13 +1,16 @@
 package ir.myhome.agent.core;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+
 public final class TraceContextSnapshot {
+    private final Deque<Span> stack;
 
-    public static final TraceContextSnapshot EMPTY = new TraceContextSnapshot(null, new String[0]);
-    public final String traceId;
-    public final String[] spanStack;
+    public TraceContextSnapshot(Deque<Span> stack) {
+        this.stack = stack != null ? stack : new ArrayDeque<>();
+    }
 
-    public TraceContextSnapshot(String traceId, String[] spanStack) {
-        this.traceId = traceId;
-        this.spanStack = spanStack == null ? new String[0] : spanStack;
+    public Deque<Span> getStack() {
+        return new ArrayDeque<>(stack); // defensive copy
     }
 }

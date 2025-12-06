@@ -1,5 +1,6 @@
 package ir.myhome.agent.worker;
 
+import ir.myhome.agent.config.AgentContext;
 import ir.myhome.agent.exporter.Exporter;
 import ir.myhome.agent.queue.SpanQueue;
 
@@ -8,10 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * BatchWorker:
- * جمع‌آوری اسپن‌ها از صف و ارسال به Exporter در یک ترد جدا.
- */
 public final class BatchWorker implements Runnable {
 
     private final SpanQueue q;
@@ -33,8 +30,8 @@ public final class BatchWorker implements Runnable {
             try {
                 Object s = q.take();
                 if (s != null) buffer.add(s);
+                q.poll();
 
-                // drain up to batchSize
                 while (buffer.size() < batchSize) {
                     Object x = q.poll();
                     if (x == null) break;
@@ -42,11 +39,19 @@ public final class BatchWorker implements Runnable {
                 }
 
                 if (!buffer.isEmpty()) {
+                    if (AgentContext.getAgentConfig().debug) {
+                        System.out.println("[BatchWorker] exporting batch of size=" + buffer.size());
+                    }
+
                     for (Object item : buffer) {
                         try {
-                            exporter.export(toMap(item));
+                            Map<String, Object> m = toMap(item);
+                            exporter.export(m);
+                            if (AgentContext.getAgentConfig().debug) {
+                                System.out.println("[BatchWorker] exported span: " + m);
+                            }
                         } catch (Throwable t) {
-                            if (System.getProperty("agent.debug", "false").equals("true")) {
+                            if (AgentContext.getAgentConfig().debug) {
                                 System.err.println("[BatchWorker] export failed: " + t.getMessage());
                             }
                         }
@@ -57,9 +62,9 @@ public final class BatchWorker implements Runnable {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Throwable t) {
-                if (System.getProperty("agent.debug", "false").equals("true"))
+                if (AgentContext.getAgentConfig().debug) {
                     System.err.println("[BatchWorker] loop error: " + t.getMessage());
-
+                }
                 try {
                     Thread.sleep(pollMillis);
                 } catch (InterruptedException ie) {
@@ -73,7 +78,6 @@ public final class BatchWorker implements Runnable {
     @SuppressWarnings("unchecked")
     private Map<String, Object> toMap(Object spanObj) {
         if (spanObj instanceof Map) return (Map<String, Object>) spanObj;
-
         Map<String, Object> m = new HashMap<>();
         m.put("span", spanObj);
         return m;

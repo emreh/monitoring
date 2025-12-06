@@ -1,7 +1,6 @@
 package ir.myhome.agent.instrumentation.advice;
 
-import ir.myhome.agent.config.AgentConfig;
-import ir.myhome.agent.core.AgentContext;
+import ir.myhome.agent.config.AgentContext;
 import ir.myhome.agent.core.Span;
 import ir.myhome.agent.core.TraceContextHolder;
 import ir.myhome.agent.util.PrettyArgRenderer;
@@ -10,41 +9,35 @@ import net.bytebuddy.asm.Advice;
 
 import java.util.StringJoiner;
 
-/**
-  اصلاح: مشکل NPE چون @Advice.Local Span[] ابتدا null است.
-  بنابراین ابتدا آرایه را مقداردهی می‌کنیم و سپس spanRef[0] = s;
-  Advice باید خیلی سبک بماند (بدون UUID, ObjectMapper, SecureRandom و...).
-*/
 public final class TimingAdviceEnter {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(@Advice.Origin("#t.#m") String signature, @Advice.AllArguments(readOnly = true) Object[] args, @Advice.Local("spanRef") Span[] spanRef) {
+    public static Span enter(@Advice.Origin("#t.#m") String signature, @Advice.AllArguments Object[] args) {
         try {
-            // initialize the local array so we can safely write to spanRef[0]
-            spanRef = new Span[1];
-
             String traceId = TraceContextHolder.currentTraceId();
+            if (traceId == null) traceId = SpanIdGenerator.nextId(); // شروع یک trace جدید اگر لازم باشد
             String spanId = SpanIdGenerator.nextId();
-            String parent = TraceContextHolder.currentSpanId();
-            TraceContextHolder.pushSpan(spanId, traceId);
+            String parentId = TraceContextHolder.currentSpan() != null ? TraceContextHolder.currentSpan().spanId : null;
 
-            Span s = new Span(traceId, spanId, parent, extractService(signature), signature, System.currentTimeMillis());
-            spanRef[0] = s;
+            Span span = new Span(traceId, spanId, parentId, extractService(signature), signature, System.currentTimeMillis());
 
+            // ثبت آرگومان‌ها
             if (args != null && args.length > 0) {
                 StringJoiner sj = new StringJoiner(", ", "[", "]");
                 for (Object a : args) sj.add(PrettyArgRenderer.render(a));
-                s.addTag("args", sj.toString());
+                span.addTag("args", sj.toString());
             }
 
-            if (AgentContext.getAgentConfig().debug) {
+            TraceContextHolder.pushSpan(span);
+
+            if (AgentContext.getAgentConfig().debug)
                 System.out.println("[TimingAdviceEnter] enter " + signature + " spanId=" + spanId);
-            }
+
+            return span;
+
         } catch (Throwable t) {
-            // لاگ خطا برای دیباگ؛ در prod این را خاموش کن
-            if (AgentContext.getAgentConfig().debug) {
-                System.err.println("[TimingAdviceEnter] failed: " + t);
-            }
+            if (AgentContext.getAgentConfig().debug) System.err.println("[TimingAdviceEnter] failed: " + t);
+            return null;
         }
     }
 

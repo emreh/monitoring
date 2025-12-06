@@ -21,7 +21,12 @@ public final class SimpleErrorListener implements AgentBuilder.Listener {
 
     @Override
     public void onError(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
-        out.println("[Agent-Error] type=" + typeName + " : " + throwable.getMessage());
+        out.println("========== BYTEBUDDY ERROR ==========");
+        out.println("Type: " + typeName);
+        out.println("Message: " + throwable.getMessage());
+        out.println("Cause: " + throwable.getClass().getName());
+        throwable.printStackTrace(out);
+        out.println("======================================");
     }
 
     @Override
