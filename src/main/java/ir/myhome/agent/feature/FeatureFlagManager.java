@@ -10,19 +10,29 @@ public final class FeatureFlagManager {
         this.cfg = cfg;
     }
 
-    public boolean executor() {
-        return cfg.executor;
+    public boolean timingEnabled() {
+        return cfg.timing != null && cfg.timing.enabled;
     }
 
-    public boolean jdbc() {
-        return cfg.jdbc;
+    public boolean executorEnabled() {
+        return cfg.executor != null && cfg.executor.enabled;
     }
 
-    public boolean httpClient() {
-        return cfg.httpClient;
+    public boolean jdbcEnabled() {
+        return cfg.jdbc != null && cfg.jdbc.enabled;
     }
 
-    public boolean timing() {
-        return cfg.timing;
+    public boolean httpClientEnabled() {
+        return cfg.httpClient != null && cfg.httpClient.enabled;
+    }
+
+    public boolean scheduledEnabled() {
+        return cfg.scheduled != null && cfg.scheduled.enabled;
+    }
+
+    public java.util.List<String> timingEntryPoints() {
+        if (cfg.timing == null || cfg.timing.entrypoints == null) return java.util.Collections.emptyList();
+
+        return cfg.timing.entrypoints;
     }
 }

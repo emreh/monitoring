@@ -7,8 +7,16 @@ exporter:
   endpoint: "http://localhost:8080/collect"
 
 instrumentation:
-  executor: true
-  jdbc: false
-  httpClient: false
-  scheduled: false
-  timing: true
+  executor:
+    enabled: true
+  jdbc:
+    enabled: false
+  httpClient:
+    enabled: false
+  scheduled:
+    enabled: false
+  timing:
+    enabled: true
+    entrypoints:
+      - "ir.myhome.spring.controller.*"
+      - "ir.myhome.spring.service.*"
