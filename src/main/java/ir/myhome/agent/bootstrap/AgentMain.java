@@ -6,7 +6,6 @@ import ir.myhome.agent.config.AgentContext;
 import ir.myhome.agent.exporter.ConsoleExporter;
 import ir.myhome.agent.exporter.Exporter;
 import ir.myhome.agent.exporter.HttpExporter;
-import ir.myhome.agent.instrumentation.InstrumentationInstaller;
 import ir.myhome.agent.queue.BoundedSpanQueue;
 import ir.myhome.agent.queue.SpanQueue;
 import ir.myhome.agent.worker.BatchWorker;

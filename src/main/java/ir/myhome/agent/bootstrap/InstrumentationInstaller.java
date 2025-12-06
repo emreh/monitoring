@@ -1,4 +1,4 @@
-package ir.myhome.agent.instrumentation;
+package ir.myhome.agent.bootstrap;
 
 import ir.myhome.agent.config.AgentConfig;
 import ir.myhome.agent.config.AgentConfig.TimingConfig;
