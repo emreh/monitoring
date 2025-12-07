@@ -1,7 +1,7 @@
 package ir.myhome.agent.bootstrap;
 
 import ir.myhome.agent.config.AgentConfig;
-import ir.myhome.agent.config.YamlUtil;
+import ir.myhome.agent.config.AgentConfigLoader;
 import ir.myhome.agent.config.AgentContext;
 import ir.myhome.agent.exporter.ConsoleExporter;
 import ir.myhome.agent.exporter.Exporter;
@@ -18,7 +18,7 @@ public final class AgentMain {
         System.out.println("[AgentMain] starting agent...");
 
         // load config from YAML
-        AgentConfig cfg = YamlUtil.loadYaml("agent-config.yml", AgentConfig.class);
+        AgentConfig cfg = AgentConfigLoader.loadYaml("agent-config.yml", AgentConfig.class);
         if (cfg == null) throw new RuntimeException("Agent config not loaded!");
 
         // initialize context

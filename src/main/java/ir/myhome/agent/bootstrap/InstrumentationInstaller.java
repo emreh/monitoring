@@ -22,7 +22,6 @@ public final class InstrumentationInstaller {
     public static void install(Instrumentation inst, AgentConfig cfg) {
         AgentBuilder.Listener listener = new SimpleErrorListener(System.out);
 
-        // default ignore set; avoid instrumenting framework classes
         AgentBuilder builder = new AgentBuilder.Default()
                 .with(listener)
                 .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
@@ -41,7 +40,7 @@ public final class InstrumentationInstaller {
             if (cfg.instrumentation.executor.enabled) {
                 builder = builder
                         .type(isSubTypeOf(java.util.concurrent.ExecutorService.class)
-                                .and(nameStartsWith("ir.myhome.spring.")))
+                                .and(nameStartsWith(cfg.rootPackage)))
                         .transform((b, td, cl, md, pd) ->
                                 b.method(named("execute")
                                                 .or(named("submit"))
@@ -53,7 +52,7 @@ public final class InstrumentationInstaller {
 
             if (cfg.instrumentation.jdbc.enabled) {
                 builder = builder
-                        .type(nameStartsWith("ir.myhome.spring.")
+                        .type(nameStartsWith(cfg.rootPackage)
                                 .and(nameContains("jdbc").or(nameContains("dao")).or(nameContains("repository"))))
                         .transform((b, td, cl, md, pd) ->
                                 b.method(named("execute").or(named("executeQuery")).or(named("executeUpdate")))
@@ -61,29 +60,26 @@ public final class InstrumentationInstaller {
                         );
             }
 
-            // timing instrumentation: use entrypoints defined in cfg
+            // ===== TIMING =====
             if (cfg.instrumentation.timing != null && cfg.instrumentation.timing.enabled) {
                 TimingConfig timing = cfg.instrumentation.timing;
-                AgentBuilder matcherBuilder = builder; // start from current builder
+                AgentBuilder matcherBuilder = builder;
 
-                // build a type matcher based on entrypoints
                 net.bytebuddy.matcher.ElementMatcher.Junction<?> typeMatcher = null;
                 List<String> entries = timing.entrypoints;
 
                 if (entries == null || entries.isEmpty()) {
-                    // fallback: instrument whole package prefix
-                    typeMatcher = nameStartsWith("ir.myhome.spring.");
+                    System.out.println("[InstrumentationInstaller] WARNING: timing.entrypoints is empty -> using default prefix ir.myhome.spring.*");
+                    typeMatcher = nameStartsWith(cfg.rootPackage);
                 } else {
                     for (String ep : entries) {
                         if (ep == null || ep.isEmpty()) continue;
-                        // support pattern like "ir.myhome.spring.controller.*"
                         String trimmed = ep.trim();
                         if (trimmed.endsWith(".*")) {
                             String prefix = trimmed.substring(0, trimmed.length() - 2);
                             if (typeMatcher == null) typeMatcher = nameStartsWith(prefix + ".");
                             else typeMatcher = typeMatcher.or(nameStartsWith(prefix + "."));
                         } else {
-                            // exact package/class match or prefix without wildcard
                             if (trimmed.endsWith(".")) trimmed = trimmed.substring(0, trimmed.length() - 1);
                             if (typeMatcher == null) typeMatcher = nameStartsWith(trimmed);
                             else typeMatcher = typeMatcher.or(nameStartsWith(trimmed));
@@ -92,8 +88,7 @@ public final class InstrumentationInstaller {
                 }
 
                 if (typeMatcher == null) {
-                    // safe default
-                    typeMatcher = nameStartsWith("ir.myhome.spring.");
+                    typeMatcher = nameStartsWith(cfg.rootPackage);
                 }
 
                 final ElementMatcher.Junction<?> finalTypeMatcher = typeMatcher;
@@ -107,8 +102,8 @@ public final class InstrumentationInstaller {
                                     .and(isPublic())
                                     .and(not(isStatic()));
 
-                            // install enter+exit together to preserve @Advice.Enter propagation
-                            b = b.visit(Advice.to(TimingAdviceEnter.class, TimingAdviceExitDynamic.class).on(commonMatcher));
+                            b = b.visit(Advice.to(TimingAdviceEnter.class, TimingAdviceExitDynamic.class)
+                                    .on(commonMatcher));
                             return b;
                         });
 
@@ -117,6 +112,7 @@ public final class InstrumentationInstaller {
 
             builder.installOn(inst);
             System.out.println("[InstrumentationInstaller] instrumentation installed");
+
         } catch (Throwable t) {
             System.err.println("[InstrumentationInstaller] install failed: " + t.getMessage());
             t.printStackTrace();

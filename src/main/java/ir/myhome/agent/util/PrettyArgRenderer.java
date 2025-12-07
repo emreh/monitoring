@@ -1,4 +1,3 @@
-// file: src/main/java/ir/myhome/agent/util/PrettyArgRenderer.java
 package ir.myhome.agent.util;
 
 import java.lang.reflect.Array;

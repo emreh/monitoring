@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../config/agent-config.schema.json
 debug: true
 
 exporter:

@@ -1,6 +1,9 @@
 package ir.myhome.agent.config;
 
 public final class AgentConfig {
+
+    public String rootPackage = "ir.myhome.spring.";
+
     public boolean debug = false;
     public ExporterConfig exporter = new ExporterConfig();
     public InstrumentationConfig instrumentation = new InstrumentationConfig();
@@ -22,8 +25,13 @@ public final class AgentConfig {
 
         public static final class Feature {
             public boolean enabled;
-            public Feature() {}
-            public Feature(boolean enabled) { this.enabled = enabled; }
+
+            public Feature() {
+            }
+
+            public Feature(boolean enabled) {
+                this.enabled = enabled;
+            }
         }
     }
 
@@ -32,8 +40,8 @@ public final class AgentConfig {
         /**
          * List of entrypoint patterns; supports suffix '*' for prefix matching.
          * Examples:
-         *   - "ir.myhome.spring.controller.*"
-         *   - "ir.myhome.spring.service.*"
+         * - "ir.myhome.spring.controller.*"
+         * - "ir.myhome.spring.service.*"
          *
          * If null or empty -> fallback behavior (instrument ir.myhome.spring.*)
          */

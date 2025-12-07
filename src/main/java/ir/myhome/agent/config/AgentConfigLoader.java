@@ -6,13 +6,16 @@ import org.yaml.snakeyaml.constructor.Constructor;
 
 import java.io.InputStream;
 
-public final class YamlUtil {
+/**
+ * read YML file
+ */
+public final class AgentConfigLoader {
 
-    private YamlUtil() {
+    private AgentConfigLoader() {
     }
 
     public static <T> T loadYaml(String path, Class<T> type) {
-        try (InputStream in = YamlUtil.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream in = AgentConfigLoader.class.getClassLoader().getResourceAsStream(path)) {
             if (in == null) {
                 throw new RuntimeException("Cannot find resource: " + path);
             }
