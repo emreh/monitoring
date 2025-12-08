@@ -2,6 +2,7 @@ package ir.myhome.agent.worker;
 
 import ir.myhome.agent.config.AgentContext;
 import ir.myhome.agent.exporter.Exporter;
+import ir.myhome.agent.metrics.AgentMetrics;
 import ir.myhome.agent.queue.SpanQueue;
 
 import java.util.ArrayList;
@@ -15,12 +16,14 @@ public final class BatchWorker implements Runnable {
     private final Exporter exporter;
     private final int batchSize;
     private final int pollMillis;
+    private final AgentMetrics metrics;
 
-    public BatchWorker(SpanQueue q, Exporter exporter, int batchSize, int pollMillis) {
+    public BatchWorker(SpanQueue q, Exporter exporter, int batchSize, int pollMillis, AgentMetrics metrics) {
         this.q = q;
         this.exporter = exporter;
         this.batchSize = Math.max(1, batchSize);
         this.pollMillis = Math.max(10, pollMillis);
+        this.metrics = metrics;
     }
 
     @Override
@@ -28,14 +31,20 @@ public final class BatchWorker implements Runnable {
         List<Object> buffer = new ArrayList<>(batchSize);
         while (true) {
             try {
-                Object s = q.take();
-                if (s != null) buffer.add(s);
-                q.poll();
+                // blocking wait for first item
+                Object first = q.take(); // blocking
+                if (first != null) buffer.add(first);
 
-                while (buffer.size() < batchSize) {
+                // drain up to batchSize-1 more items without blocking
+                for (int i = 1; i < batchSize; i++) {
                     Object x = q.poll();
                     if (x == null) break;
                     buffer.add(x);
+                }
+
+                // update queue size metric (best-effort)
+                if (metrics != null) {
+                    metrics.setQueueSize(q.size());
                 }
 
                 if (!buffer.isEmpty()) {
@@ -56,15 +65,20 @@ public final class BatchWorker implements Runnable {
                             }
                         }
                     }
+
+                    // metrics: flushed count + lastFlush
+                    if (metrics != null) metrics.addFlushed(buffer.size());
+
                     buffer.clear();
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                break;
+                break; // exit loop to allow graceful shutdown
             } catch (Throwable t) {
                 if (AgentContext.getAgentConfig().debug) {
                     System.err.println("[BatchWorker] loop error: " + t.getMessage());
                 }
+
                 try {
                     Thread.sleep(pollMillis);
                 } catch (InterruptedException ie) {
@@ -73,11 +87,31 @@ public final class BatchWorker implements Runnable {
                 }
             }
         }
+
+        // before exit, try to flush remaining items (best-effort)
+        try {
+            List<Object> remaining = new ArrayList<>();
+            Object x;
+            while ((x = q.poll()) != null) remaining.add(x);
+
+            if (!remaining.isEmpty()) {
+                for (Object item : remaining) {
+                    try {
+                        exporter.export(toMap(item));
+                    } catch (Throwable ignored) {
+                    }
+                }
+
+                if (metrics != null) metrics.addFlushed(remaining.size());
+            }
+        } catch (Throwable ignore) {
+        }
     }
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> toMap(Object spanObj) {
         if (spanObj instanceof Map) return (Map<String, Object>) spanObj;
+
         Map<String, Object> m = new HashMap<>();
         m.put("span", spanObj);
         return m;
