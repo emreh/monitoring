@@ -16,6 +16,10 @@ public final class AgentConfig {
     public int workerCount = 1;
     public int pollMillis = 20;
 
+    public boolean enableAdvancedMetrics = true;
+    public int percentileMaxValueMs = 60000; // برای histogram
+    public int percentilePrecision = 2; // digits HDRHistogram
+
     public static final class ExporterConfig {
         public String type = "console";
         public int batchSize = 10;

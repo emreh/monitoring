@@ -2,10 +2,8 @@ package ir.myhome.agent.bootstrap;
 
 import ir.myhome.agent.config.AgentConfig;
 import ir.myhome.agent.config.AgentConfig.TimingConfig;
-import ir.myhome.agent.instrumentation.advice.ExecutorServiceAdvice;
-import ir.myhome.agent.instrumentation.advice.JdbcAdvice;
-import ir.myhome.agent.instrumentation.advice.TimingAdviceEnter;
-import ir.myhome.agent.instrumentation.advice.TimingAdviceExitDynamic;
+import ir.myhome.agent.instrumentation.advice.*;
+import ir.myhome.agent.metrics.MetricCollectorSingleton;
 import ir.myhome.agent.util.listener.SimpleErrorListener;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
@@ -21,6 +19,9 @@ public final class InstrumentationInstaller {
 
     public static void install(Instrumentation inst, AgentConfig cfg) {
         AgentBuilder.Listener listener = new SimpleErrorListener(System.out);
+
+        // قبل از نصب، MetricCollectorSingleton رو مقداردهی می‌کنیم
+        MetricCollectorSingleton.init(cfg);
 
         AgentBuilder builder = new AgentBuilder.Default()
                 .with(listener)
@@ -60,7 +61,7 @@ public final class InstrumentationInstaller {
                         );
             }
 
-            // ===== TIMING =====
+            // ===== TIMING + Percentile =====
             if (cfg.instrumentation.timing != null && cfg.instrumentation.timing.enabled) {
                 TimingConfig timing = cfg.instrumentation.timing;
                 AgentBuilder matcherBuilder = builder;
@@ -74,13 +75,17 @@ public final class InstrumentationInstaller {
                 } else {
                     for (String ep : entries) {
                         if (ep == null || ep.isEmpty()) continue;
+
                         String trimmed = ep.trim();
+
                         if (trimmed.endsWith(".*")) {
                             String prefix = trimmed.substring(0, trimmed.length() - 2);
+
                             if (typeMatcher == null) typeMatcher = nameStartsWith(prefix + ".");
                             else typeMatcher = typeMatcher.or(nameStartsWith(prefix + "."));
                         } else {
                             if (trimmed.endsWith(".")) trimmed = trimmed.substring(0, trimmed.length() - 1);
+
                             if (typeMatcher == null) typeMatcher = nameStartsWith(trimmed);
                             else typeMatcher = typeMatcher.or(nameStartsWith(trimmed));
                         }
@@ -102,8 +107,14 @@ public final class InstrumentationInstaller {
                                     .and(isPublic())
                                     .and(not(isStatic()));
 
+                            // اضافه کردن Advice برای Timing
                             b = b.visit(Advice.to(TimingAdviceEnter.class, TimingAdviceExitDynamic.class)
                                     .on(commonMatcher));
+
+                            // اضافه کردن PercentileAdvice برای هر متد
+                            b = b.visit(Advice.to(PercentileAdvice.class)
+                                    .on(commonMatcher));
+
                             return b;
                         });
 

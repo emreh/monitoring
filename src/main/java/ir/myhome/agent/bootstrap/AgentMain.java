@@ -3,6 +3,7 @@ package ir.myhome.agent.bootstrap;
 import ir.myhome.agent.config.AgentConfig;
 import ir.myhome.agent.config.AgentConfigLoader;
 import ir.myhome.agent.config.AgentContext;
+import ir.myhome.agent.exporter.BatchExporter;
 import ir.myhome.agent.exporter.ConsoleExporter;
 import ir.myhome.agent.exporter.Exporter;
 import ir.myhome.agent.exporter.HttpExporter;
@@ -59,11 +60,19 @@ public final class AgentMain {
         if ("http".equalsIgnoreCase(cfg.exporter.type)) {
             exporter = new HttpExporter(cfg.exporter.endpoint);
             System.out.println("[AgentMain] HttpExporter enabled -> " + cfg.exporter.endpoint);
+        } if ("batch".equalsIgnoreCase(cfg.exporter.type)) {
+            exporter = new BatchExporter();
+            System.out.println("[AgentMain] BatchExporter enabled");
         } else {
             exporter = new ConsoleExporter();
             System.out.println("[AgentMain] ConsoleExporter enabled");
         }
         AgentHolder.setExporter(exporter);
+
+        // اگر Exporter یک Runnable است، thread آن را اجرا می‌کنیم
+        if (exporter instanceof Runnable runnable) {
+            new Thread(runnable, "ExporterThread").start();
+        }
 
         // ------------------------------------------------------------
         // 5) Metrics
