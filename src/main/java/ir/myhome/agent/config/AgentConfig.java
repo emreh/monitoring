@@ -1,5 +1,8 @@
 package ir.myhome.agent.config;
 
+import java.util.Arrays;
+import java.util.List;
+
 public final class AgentConfig {
 
     public String rootPackage = "ir.myhome.spring.";
@@ -7,6 +10,11 @@ public final class AgentConfig {
     public boolean debug = false;
     public ExporterConfig exporter = new ExporterConfig();
     public InstrumentationConfig instrumentation = new InstrumentationConfig();
+
+    // new for phase 6
+    public int queueCapacity = 10000;
+    public int workerCount = 1;
+    public int pollMillis = 20;
 
     public static final class ExporterConfig {
         public String type = "console";
@@ -39,24 +47,12 @@ public final class AgentConfig {
         public boolean enabled = true;
         /**
          * List of entrypoint patterns; supports suffix '*' for prefix matching.
-         * Examples:
-         * - "ir.myhome.spring.controller.*"
-         * - "ir.myhome.spring.service.*"
-         *
-         * If null or empty -> fallback behavior (instrument ir.myhome.spring.*)
          */
-        public java.util.List<String> entrypoints = java.util.Arrays.asList(
-                "ir.myhome.spring.controller.*",
-                "ir.myhome.spring.service.*"
-        );
+        public List<String> entrypoints = Arrays.asList("ir.myhome.spring.controller.*", "ir.myhome.spring.service.*");
     }
 
     @Override
     public String toString() {
-        return "AgentConfig{" +
-                "debug=" + debug +
-                ", exporter=" + exporter +
-                ", instrumentation=" + instrumentation +
-                '}';
+        return "AgentConfig{" + "debug=" + debug + ", exporter=" + exporter + ", instrumentation=" + instrumentation + ", queueCapacity=" + queueCapacity + ", workerCount=" + workerCount + ", pollMillis=" + pollMillis + '}';
     }
 }

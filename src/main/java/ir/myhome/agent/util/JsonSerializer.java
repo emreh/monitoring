@@ -1,12 +1,11 @@
-// file: src/main/java/ir/myhome/agent/util/JsonSerializer.java
 package ir.myhome.agent.util;
 
 import tools.jackson.databind.ObjectMapper;
 
 /**
-  lazy-init ObjectMapper to avoid heavy classloading in Advice.
-  (ObjectMapper class will only be loaded in worker/exporter threads.)
-*/
+ * lazy-init ObjectMapper to avoid heavy classloading in Advice.
+ * (ObjectMapper class will only be loaded in worker/exporter threads.)
+ */
 public final class JsonSerializer {
     private JsonSerializer() {
     }

@@ -15,6 +15,8 @@ import ir.myhome.agent.ui.StatusServer;
 import ir.myhome.agent.worker.BatchWorker;
 
 import java.lang.instrument.Instrumentation;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class AgentMain {
 
@@ -47,7 +49,7 @@ public final class AgentMain {
         // ------------------------------------------------------------
         // 3) Queue
         // ------------------------------------------------------------
-        SpanQueue queue = new BoundedSpanQueue(cfg.exporter.capacity);
+        SpanQueue queue = new BoundedSpanQueue(cfg.queueCapacity);
         AgentHolder.setSpanQueue(queue);
 
         // ------------------------------------------------------------
@@ -69,17 +71,23 @@ public final class AgentMain {
         AgentMetrics metrics = new AgentMetrics();
 
         // ------------------------------------------------------------
-        // 6) Background worker
+        // 6) Background worker(s)
         // ------------------------------------------------------------
-        Thread workerThread = new Thread(new BatchWorker(queue, exporter, cfg.exporter.batchSize, 20, metrics), "agent-batch-worker");
-        workerThread.setDaemon(true);
-        workerThread.start();
+        List<Thread> workers = new ArrayList<>();
+        int workerCount = Math.max(1, cfg.workerCount);
+        for (int i = 0; i < workerCount; i++) {
+            Thread workerThread = new Thread(new BatchWorker(queue, exporter, cfg.exporter.batchSize, cfg.pollMillis, metrics), "agent-batch-worker-" + i);
+            workerThread.setDaemon(true);
+            workerThread.start();
+            workers.add(workerThread);
+        }
 
         // ------------------------------------------------------------
         // 7) Status HTTP server (debug / observability)
         // ------------------------------------------------------------
+        StatusServer statusServer = null;
         try {
-            StatusServer statusServer = new StatusServer(8081, metrics);
+            statusServer = new StatusServer(8082, metrics);
             statusServer.start();
         } catch (Exception e) {
             System.err.println("[AgentMain] status server failed: " + e.getMessage());
@@ -94,6 +102,39 @@ public final class AgentMain {
             System.err.println("[AgentMain] instrumentation install failed: " + t.getMessage());
             t.printStackTrace();
         }
+
+        // ------------------------------------------------------------
+        // 9) Shutdown hook -> graceful stop
+        // ------------------------------------------------------------
+        final StatusServer finalStatusServer = statusServer;
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("[AgentMain] shutdown initiated");
+            try {
+                // interrupt workers
+                for (Thread wt : workers) {
+                    wt.interrupt();
+                }
+                // give them a bit to finish
+                for (Thread wt : workers) {
+                    try {
+                        wt.join(2000);
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+                // stop status server
+                if (finalStatusServer != null) finalStatusServer.stop();
+
+                // close exporter if needed
+                try {
+                    AgentHolder.getExporter().close();
+                } catch (Throwable ignore) {
+                }
+
+                System.out.println("[AgentMain] shutdown complete");
+            } catch (Throwable t) {
+                System.err.println("[AgentMain] shutdown error: " + t.getMessage());
+            }
+        }, "agent-shutdown-hook"));
 
         System.out.println("[AgentMain] agent started successfully");
     }

@@ -6,22 +6,26 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 public final class HttpExporter implements Exporter {
 
     private final String endpoint;
+    private final int connectTimeoutMs = 2000;
+    private final int readTimeoutMs = 5000;
 
     public HttpExporter(String endpoint) {
         this.endpoint = endpoint;
     }
 
     @Override
-    public void export(Map<String, Object> span) {
+    public void export(java.util.Map<String, Object> span) {
+        HttpURLConnection conn = null;
         try {
             URL u = new URL(endpoint);
-            HttpURLConnection conn = (HttpURLConnection) u.openConnection();
+            conn = (HttpURLConnection) u.openConnection();
             conn.setRequestMethod("POST");
+            conn.setConnectTimeout(connectTimeoutMs);
+            conn.setReadTimeout(readTimeoutMs);
             conn.setDoOutput(true);
 
             byte[] payload = JsonSerializer.toJson(span).getBytes(StandardCharsets.UTF_8);
@@ -31,14 +35,19 @@ public final class HttpExporter implements Exporter {
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(payload);
             }
-            conn.getResponseCode();
-            conn.disconnect();
+            int code = conn.getResponseCode();
+            if (code >= 400) {
+                System.err.println("[HttpExporter] remote returned code=" + code);
+            }
         } catch (Throwable t) {
             System.err.println("[HttpExporter] send failed: " + t.getMessage());
+        } finally {
+            if (conn != null) conn.disconnect();
         }
     }
 
     @Override
     public void close() {
+        // nothing to close for simple HttpURLConnection
     }
 }

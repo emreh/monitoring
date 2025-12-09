@@ -1,6 +1,7 @@
 package ir.myhome.agent.worker;
 
 import ir.myhome.agent.config.AgentContext;
+import ir.myhome.agent.core.Span;
 import ir.myhome.agent.exporter.Exporter;
 import ir.myhome.agent.metrics.AgentMetrics;
 import ir.myhome.agent.queue.SpanQueue;
@@ -29,7 +30,8 @@ public final class BatchWorker implements Runnable {
     @Override
     public void run() {
         List<Object> buffer = new ArrayList<>(batchSize);
-        while (true) {
+
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 // blocking wait for first item
                 Object first = q.take(); // blocking
@@ -111,6 +113,22 @@ public final class BatchWorker implements Runnable {
     @SuppressWarnings("unchecked")
     private Map<String, Object> toMap(Object spanObj) {
         if (spanObj instanceof Map) return (Map<String, Object>) spanObj;
+        if (spanObj instanceof Span) {
+            Span s = (Span) spanObj;
+            Map<String, Object> m = new HashMap<>();
+            m.put("traceId", s.traceId);
+            m.put("spanId", s.spanId);
+            m.put("parentId", s.parentId);
+            m.put("service", s.service);
+            m.put("endpoint", s.endpoint);
+            m.put("status", s.status);
+            m.put("statusCode", s.statusCode);
+            m.put("durationMs", s.durationMs);
+            m.put("startEpochMs", s.startEpochMs);
+            m.put("errorMessage", s.errorMessage);
+            m.put("tags", s.tags);
+            return m;
+        }
 
         Map<String, Object> m = new HashMap<>();
         m.put("span", spanObj);

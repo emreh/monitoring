@@ -1,6 +1,10 @@
 # yaml-language-server: $schema=../../config/agent-config.schema.json
 debug: true
 
+queueCapacity : 10000
+workerCount : 1
+pollMillis : 20
+
 exporter:
   type: console
   batchSize: 10
