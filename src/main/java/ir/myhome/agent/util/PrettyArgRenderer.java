@@ -18,7 +18,6 @@ public final class PrettyArgRenderer {
         if (o == null) return "null";
 
         try {
-
             if (o instanceof String) return quote(truncate((String) o));
 
             if (o instanceof Number || o instanceof Boolean || o instanceof Character) return String.valueOf(o);
@@ -33,7 +32,6 @@ public final class PrettyArgRenderer {
             String t = safeToString(o);
 
             if (t != null && t.length() < 300 && !t.contains("@")) return cls + "(" + truncate(t) + ")";
-
             return cls + "@" + Integer.toHexString(System.identityHashCode(o));
         } catch (Throwable tt) {
             return "<render-error>";
@@ -44,7 +42,9 @@ public final class PrettyArgRenderer {
         int size = c.size();
         String prefix = "list(size=" + size + ")";
         if (size == 0) return prefix;
+
         StringJoiner j = new StringJoiner(", ", "[", "]");
+
         int i = 0;
         for (Object e : c) {
             if (i++ >= MAX_COLLECTION_SIZE) {

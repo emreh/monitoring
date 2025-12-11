@@ -1,38 +1,33 @@
 package ir.myhome.agent.queue;
 
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.BlockingQueue;
 
-public final class BoundedSpanQueue implements SpanQueue {
+public class BoundedSpanQueue implements SpanQueue {
 
-    private final ArrayBlockingQueue<Object> q;
+    private final BlockingQueue<Object> queue;
 
     public BoundedSpanQueue(int capacity) {
-        this.q = new ArrayBlockingQueue<>(Math.max(1, capacity));
+        this.queue = new ArrayBlockingQueue<>(capacity);
     }
 
     @Override
     public boolean offer(Object span) {
-        try {
-            return q.offer(span, 2, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        }
+        return queue.offer(span);
     }
 
     @Override
     public Object poll() {
-        return q.poll();
+        return queue.poll();
     }
 
     @Override
     public Object take() throws InterruptedException {
-        return q.take();
+        return queue.take();
     }
 
     @Override
     public int size() {
-        return q.size();
+        return queue.size();
     }
 }

@@ -5,38 +5,37 @@ import ir.myhome.agent.metrics.MetricSnapshot;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 public final class MetricExporterWorker extends Thread {
 
-    private final BlockingQueue<MetricSnapshot> queue;
-    private volatile boolean running = true;
-    private final long pollTimeoutMs;
+    private final BlockingQueue<MetricSnapshot> exportQueue;
     private final int batchSize;
+    private final long pollMillis;
+    private volatile boolean running = true;
 
-    public MetricExporterWorker(BlockingQueue<MetricSnapshot> queue, long pollTimeoutMs, int batchSize) {
-        this.queue = queue;
-        this.pollTimeoutMs = pollTimeoutMs;
+    public MetricExporterWorker(BlockingQueue<MetricSnapshot> exportQueue, int batchSize, long pollMillis) {
+        this.exportQueue = exportQueue;
         this.batchSize = batchSize;
+        this.pollMillis = pollMillis;
         setName("MetricExporterWorker");
-        setDaemon(true); // Thread پس‌زمینه
+        setDaemon(true);
     }
 
     @Override
     public void run() {
         try {
             while (running) {
+                List<MetricSnapshot> batch = new ArrayList<>(batchSize);
+                exportQueue.drainTo(batch, batchSize);
+
+                if (!batch.isEmpty()) {
+                    exportBatch(batch);
+                }
+
                 try {
-                    List<MetricSnapshot> batch = new ArrayList<>(batchSize);
-                    MetricSnapshot first = queue.poll(pollTimeoutMs, TimeUnit.MILLISECONDS);
-                    if (first != null) {
-                        batch.add(first);
-                        queue.drainTo(batch, batchSize - 1); // بقیه snapshot‌ها تا تکمیل batch
-                        exportBatch(batch);
-                    }
+                    Thread.sleep(pollMillis);
                 } catch (InterruptedException e) {
                     if (!running) break;
-                    Thread.currentThread().interrupt();
                 }
             }
         } finally {
@@ -45,9 +44,9 @@ public final class MetricExporterWorker extends Thread {
     }
 
     private void exportBatch(List<MetricSnapshot> batch) {
-        // export واقعی، مثلاً به console، DB یا Kafka
+        // export واقعی، فعلاً console
         for (MetricSnapshot snapshot : batch) {
-            System.out.println(snapshot);
+            System.out.println("[Export] " + snapshot);
         }
     }
 
@@ -56,6 +55,3 @@ public final class MetricExporterWorker extends Thread {
         this.interrupt();
     }
 }
-
-
-

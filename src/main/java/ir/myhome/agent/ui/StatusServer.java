@@ -3,42 +3,50 @@ package ir.myhome.agent.ui;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import ir.myhome.agent.metrics.AgentMetrics;
+import ir.myhome.agent.metrics.MetricSnapshot;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.concurrent.BlockingQueue;
+import java.util.stream.Collectors;
 
 public final class StatusServer {
 
-    private final AgentMetrics metrics;
-    private final HttpServer server;
+    private final int port;
+    private final BlockingQueue<MetricSnapshot> exportQueue;
+    private HttpServer server;
 
-    public StatusServer(int port, AgentMetrics metrics) throws IOException {
-        this.metrics = metrics;
-        this.server = HttpServer.create(new InetSocketAddress(port), 0);
-        this.server.createContext("/status", new StatusHandler());
-        this.server.setExecutor(null);
+    public StatusServer(int port, BlockingQueue<MetricSnapshot> exportQueue) {
+        this.port = port;
+        this.exportQueue = exportQueue;
     }
 
-    public void start() {
+    public void start() throws Exception {
+        server = HttpServer.create(new InetSocketAddress(port), 0);
+        server.createContext("/status", new StatusHandler());
+        server.setExecutor(null); // default executor
         server.start();
-        System.out.println("[StatusServer] started at http://localhost:" + server.getAddress().getPort() + "/status");
+        System.out.println("[StatusServer] started at http://localhost:" + port + "/status");
     }
 
     public void stop() {
-        server.stop(0);
+        if (server != null) {
+            server.stop(0);
+            System.out.println("[StatusServer] stopped.");
+        }
     }
 
-    class StatusHandler implements HttpHandler {
+    private class StatusHandler implements HttpHandler {
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String response = "{\n" + "  \"queueSize\": " + metrics.getQueueSize() + ",\n" + "  \"flushedCount\": " + metrics.getFlushedCount() + ",\n" + "  \"lastFlushMs\": " + metrics.getLastFlushEpoch() + "\n" + "}";
-            exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, response.getBytes().length);
-
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(response.getBytes());
+        public void handle(HttpExchange exchange) {
+            try {
+                String response = exportQueue.stream().map(MetricSnapshot::toString).collect(Collectors.joining("\n"));
+                exchange.sendResponseHeaders(200, response.getBytes().length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(response.getBytes());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

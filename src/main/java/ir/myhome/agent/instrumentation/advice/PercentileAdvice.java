@@ -21,8 +21,9 @@ public final class PercentileAdvice {
         var collector = MetricCollectorSingleton.get();
         collector.recordLatency(metricName, duration);
         collector.incrementCount(metricName);
+        if (throwable != null) collector.incrementError(metricName);
 
-        if (throwable != null)
-            collector.incrementError(metricName);
+        // اضافه کردن snapshot به صف برای batch export
+        collector.enqueueForExport(metricName);
     }
 }

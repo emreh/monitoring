@@ -7,7 +7,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-public final class HttpExporter implements Exporter {
+public final class HttpExporter implements Runnable {
 
     private final String endpoint;
     private final int connectTimeoutMs = 2000;
@@ -17,7 +17,6 @@ public final class HttpExporter implements Exporter {
         this.endpoint = endpoint;
     }
 
-    @Override
     public void export(java.util.Map<String, Object> span) {
         HttpURLConnection conn = null;
         try {
@@ -47,7 +46,7 @@ public final class HttpExporter implements Exporter {
     }
 
     @Override
-    public void close() {
-        // nothing to close for simple HttpURLConnection
+    public void run() {
+
     }
 }

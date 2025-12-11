@@ -1,5 +1,6 @@
 package ir.myhome.agent.metrics;
 
+import com.tdunning.math.stats.TDigest;
 import ir.myhome.agent.config.AgentConfig;
 import org.HdrHistogram.Histogram;
 
@@ -12,7 +13,8 @@ public final class MetricCollector {
 
     private final AgentConfig cfg;
     private final ConcurrentMap<String, MetricData> metrics = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Histogram> histogramMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Histogram> histogramMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, TDigest> tDigestMap = new ConcurrentHashMap<>();
     private final BlockingQueue<MetricSnapshot> exportQueue;
 
     public MetricCollector(AgentConfig cfg) {
@@ -25,6 +27,7 @@ public final class MetricCollector {
 
         long value = Math.min(durationMs, cfg.percentileMaxValueMs);
         histogramMap.computeIfAbsent(metricName, k -> new Histogram(cfg.percentileMaxValueMs, cfg.percentilePrecision)).recordValue(value);
+        tDigestMap.computeIfAbsent(metricName, k -> TDigest.createDigest(100)).add(value);
     }
 
     public void incrementCount(String metricName) {
@@ -37,9 +40,11 @@ public final class MetricCollector {
 
     public void enqueueForExport(String metricName) {
         try {
-            MetricSnapshot snapshot = new MetricSnapshot(metricName, getCount(metricName), getErrorCount(metricName),
-                    getPercentile(metricName, 50), getPercentile(metricName, 90),
-                    getPercentile(metricName, 99));
+            Histogram hist = histogramMap.get(metricName);
+            TDigest digest = tDigestMap.get(metricName);
+
+            MetricSnapshot snapshot = new MetricSnapshot(metricName, getCount(metricName), getErrorCount(metricName), hist != null ? hist.getValueAtPercentile(50) : 0, hist != null ? hist.getValueAtPercentile(90) : 0, hist != null ? hist.getValueAtPercentile(99) : 0, digest != null ? digest.quantile(0.50) : 0, digest != null ? digest.quantile(0.90) : 0, digest != null ? digest.quantile(0.99) : 0);
+
             exportQueue.put(snapshot);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -48,11 +53,6 @@ public final class MetricCollector {
 
     public BlockingQueue<MetricSnapshot> getExportQueue() {
         return exportQueue;
-    }
-
-    public long getPercentile(String metricName, double percentile) {
-        Histogram histogram = histogramMap.get(metricName);
-        return histogram != null ? histogram.getValueAtPercentile(percentile) : 0;
     }
 
     public long getCount(String metricName) {

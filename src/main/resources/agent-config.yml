@@ -6,7 +6,7 @@ workerCount : 1
 pollMillis : 20
 
 exporter:
-  type: console
+  type: batch
   batchSize: 10
   capacity: 10000
   endpoint: "http://localhost:8080/collect"

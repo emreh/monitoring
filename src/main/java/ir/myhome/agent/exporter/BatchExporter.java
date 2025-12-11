@@ -1,60 +1,50 @@
 package ir.myhome.agent.exporter;
 
-import ir.myhome.agent.metrics.MetricCollector;
-import ir.myhome.agent.metrics.MetricCollectorSingleton;
 import ir.myhome.agent.metrics.MetricSnapshot;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
-public final class BatchExporter implements Exporter, Runnable {
+public final class BatchExporter implements Runnable {
 
-    private final BlockingQueue<MetricSnapshot> queue;
+    private final BlockingQueue<MetricSnapshot> exportQueue;
+    private final int batchSize;
+    private final long flushMillis;
+    private volatile boolean running = true;
 
-    public BatchExporter() {
-        MetricCollector collector = MetricCollectorSingleton.get();
-        this.queue = collector.getExportQueue();
+    public BatchExporter(BlockingQueue<MetricSnapshot> exportQueue, int batchSize, long flushMillis) {
+        this.exportQueue = exportQueue;
+        this.batchSize = batchSize;
+        this.flushMillis = flushMillis;
     }
 
-    /** سازگار با Exporter قدیمی */
-    @Override
-    public void export(Map<String, Object> span) {
-        try {
-            // تبدیل Map به MetricSnapshot اختیاری است
-            // اگر بخواهی می‌توانی اینجا snapshot واقعی enqueue کنی
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    /** حلقه اصلی برای export snapshot */
     @Override
     public void run() {
         try {
-            while (true) {
-                MetricSnapshot snapshot = queue.take();
+            while (running) {
+                List<MetricSnapshot> batch = new ArrayList<>(batchSize);
+                exportQueue.drainTo(batch, batchSize);
 
-                // تبدیل snapshot به Map برای سازگاری با Exporter
-                Map<String, Object> map = new HashMap<>();
-                map.put("metricName", snapshot.metricName());
-                map.put("count", snapshot.count());
-                map.put("p50", snapshot.p50());
-                map.put("p90", snapshot.p90());
-                map.put("p99", snapshot.p99());
+                if (!batch.isEmpty()) {
+                    exportBatch(batch);
+                }
 
-                // چاپ یا ارسال واقعی
-                System.out.println("[BatchExporter] " + map);
-
-                // اگر بخواهی export HTTP یا DB اضافه کنی، همین map را می‌توان استفاده کرد
+                try { Thread.sleep(flushMillis); }
+                catch (InterruptedException e) { if (!running) break; }
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        } finally {
+            System.out.println("[BatchExporter] stopped.");
         }
     }
 
-    @Override
-    public void close() {
-        // می‌توانیم flag برای توقف thread اضافه کنیم
+    private void exportBatch(List<MetricSnapshot> batch) {
+        for (MetricSnapshot snapshot : batch) {
+            System.out.println("[Export] " + snapshot);
+        }
+    }
+
+    public void shutdown() {
+        running = false;
     }
 }
