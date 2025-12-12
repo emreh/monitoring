@@ -1,6 +1,8 @@
 package ir.myhome.agent.instrumentation.advice;
 
-import ir.myhome.agent.collector.PercentileCollector;
+import ir.myhome.agent.core.Span;
+import ir.myhome.agent.core.TraceContextHolder;
+import ir.myhome.agent.scheduler.PercentileBatchScheduler;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -10,21 +12,20 @@ import net.bytebuddy.asm.Advice;
 public final class PercentileAdvice {
 
     @Advice.OnMethodEnter
-    public static long onEnter() {
+    public static long onEnter(@Advice.Origin String method) {
         return System.currentTimeMillis();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void onExit(@Advice.Origin String method, @Advice.Enter long start, @Advice.Thrown Throwable thrown) {
-        long duration = Math.max(0, System.currentTimeMillis() - start);
+    public static void onExit(@Advice.Origin String method, @Advice.Enter long start, @Advice.Thrown Throwable throwable) {
+        long duration = System.currentTimeMillis() - start;
 
-        // method string از ByteBuddy معمولاً شامل نوع و سیگنچر. می‌توانیم آن را به عنوان endpoint استفاده کنیم.
-        String endpoint = method == null ? "unknown" : method;
+        // ایجاد span
+        String traceId = TraceContextHolder.currentTraceId();
+        Span span = new Span(traceId, traceId + "-" + System.nanoTime(), null, "service", method, start, duration);
+        TraceContextHolder.pushSpan(span);
 
-        // service را می‌توان از config یا از پکیج استخراج کرد؛ برای حالا root service ثابت:
-        String service = "app"; // در صورت نیاز این مقدار را از AgentConfig بگیر
-
-        // record only duration + endpoint
-        PercentileCollector.record(service, endpoint, duration);
+        // ثبت duration در PercentileOrchestrator از طریق PercentileBatchScheduler
+        PercentileBatchScheduler.record(duration);
     }
 }

@@ -1,44 +1,50 @@
 package ir.myhome.agent.scheduler;
 
+import ir.myhome.agent.collector.PercentileCollector;
 import ir.myhome.agent.exporter.PercentileExporter;
 
 public final class PercentileBatchScheduler {
 
+    private static PercentileCollector collector;
     private static Thread schedulerThread;
-    private static PercentileExporter exporter;
-    private static Thread exporterThread;
+    private static long flushIntervalMs;
 
-    public static void start() {
+    public static void start(PercentileCollector percentileCollector, long intervalMs) {
+        collector = percentileCollector;
+        flushIntervalMs = intervalMs;
+
         if (schedulerThread != null && schedulerThread.isAlive()) return;
 
-        exporter = new PercentileExporter(2000); // flush هر 2s — قابل تنظیم
-        exporterThread = new Thread(exporter, "PercentileExporterThread");
-        exporterThread.setDaemon(true);
-        exporterThread.start();
-
         schedulerThread = new Thread(() -> {
-            try {
-                while (!Thread.currentThread().isInterrupted()) {
-                    Thread.sleep(1000L);
+            PercentileExporter exporter = new PercentileExporter(collector, flushIntervalMs);
+            Thread exporterThread = new Thread(exporter, "PercentileExporterThread");
+            exporterThread.setDaemon(true);
+            exporterThread.start();
+
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    break;
                 }
-            } catch (InterruptedException ignored) {
-            } finally {
-                // stop exporter
-                if (exporter != null) exporter.shutdown();
-                if (exporterThread != null) exporterThread.interrupt();
             }
+
+            exporter.shutdown();
         }, "PercentileBatchScheduler");
+
         schedulerThread.setDaemon(true);
         schedulerThread.start();
-
-        System.out.println("[PercentileBatchScheduler] started");
     }
 
     public static void stop() {
         if (schedulerThread != null) schedulerThread.interrupt();
 
-        if (exporter != null) exporter.shutdown();
+        System.out.println("[PercentileBatchScheduler] stopped");
+    }
 
-        if (exporterThread != null) exporterThread.interrupt();
+    public static void record(long durationMs) {
+        if (collector != null) {
+            collector.record(durationMs);
+        }
     }
 }
