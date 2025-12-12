@@ -26,6 +26,16 @@ public final class Span {
         this.startEpochMs = startEpochMs;
     }
 
+    public Span(String traceId, String spanId, String parentId, String service, String endpoint, long startEpochMs, long durationMs) {
+        this.traceId = traceId;
+        this.spanId = spanId;
+        this.parentId = parentId;
+        this.service = service;
+        this.endpoint = endpoint;
+        this.startEpochMs = startEpochMs;
+        this.durationMs = durationMs;
+    }
+
     public void end() {
         this.durationMs = Math.max(0, System.currentTimeMillis() - this.startEpochMs);
         if (status == null) status = "OK";
@@ -44,20 +54,15 @@ public final class Span {
         this.statusCode = String.valueOf(statusCode);
     }
 
+    public long getDurationMs() {
+        return durationMs;
+    }
+
     @Override
     public String toString() {
-        return "Span{" +
-                "traceId='" + traceId + '\'' +
-                ", spanId='" + spanId + '\'' +
-                ", parentId='" + parentId + '\'' +
-                ", service='" + service + '\'' +
-                ", endpoint='" + endpoint + '\'' +
-                ", statusCode='" + statusCode + '\'' +
-                ", startEpochMs=" + startEpochMs +
-                ", durationMs=" + durationMs +
-                ", status='" + status + '\'' +
-                ", errorMessage='" + errorMessage + '\'' +
-                ", tags=" + tags +
-                '}';
+        return "Span{" + "traceId='" + traceId + '\'' + ", spanId='" + spanId + '\'' + ", parentId='" + parentId +
+                '\'' + ", service='" + service + '\'' + ", endpoint='" + endpoint + '\'' + ", statusCode='" + statusCode +
+                '\'' + ", startEpochMs=" + startEpochMs + ", durationMs=" + durationMs + ", status='" + status +
+                '\'' + ", errorMessage='" + errorMessage + '\'' + ", tags=" + tags + '}';
     }
 }

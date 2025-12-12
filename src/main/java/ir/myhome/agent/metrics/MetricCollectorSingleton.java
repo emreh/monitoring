@@ -1,5 +1,6 @@
 package ir.myhome.agent.metrics;
 
+import ir.myhome.agent.collector.MetricCollector;
 import ir.myhome.agent.config.AgentConfig;
 
 public final class MetricCollectorSingleton {

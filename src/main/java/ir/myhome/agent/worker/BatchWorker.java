@@ -1,6 +1,6 @@
 package ir.myhome.agent.worker;
 
-import ir.myhome.agent.metrics.MetricCollector;
+import ir.myhome.agent.collector.MetricCollector;
 import ir.myhome.agent.metrics.MetricCollectorSingleton;
 import ir.myhome.agent.metrics.MetricSnapshot;
 

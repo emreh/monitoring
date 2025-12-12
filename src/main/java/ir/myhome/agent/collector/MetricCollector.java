@@ -1,7 +1,9 @@
-package ir.myhome.agent.metrics;
+package ir.myhome.agent.collector;
 
 import com.tdunning.math.stats.TDigest;
 import ir.myhome.agent.config.AgentConfig;
+import ir.myhome.agent.metrics.MetricData;
+import ir.myhome.agent.metrics.MetricSnapshot;
 import org.HdrHistogram.Histogram;
 
 import java.util.concurrent.BlockingQueue;
