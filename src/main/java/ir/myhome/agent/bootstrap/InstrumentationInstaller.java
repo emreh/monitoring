@@ -2,7 +2,10 @@ package ir.myhome.agent.bootstrap;
 
 import ir.myhome.agent.config.AgentConfig;
 import ir.myhome.agent.config.AgentConfig.TimingConfig;
-import ir.myhome.agent.instrumentation.advice.*;
+import ir.myhome.agent.instrumentation.advice.ExecutorServiceAdvice;
+import ir.myhome.agent.instrumentation.advice.JdbcAdvice;
+import ir.myhome.agent.instrumentation.advice.PercentileAdvice;
+import ir.myhome.agent.instrumentation.advice.TimingAdvice;
 import ir.myhome.agent.metrics.MetricCollectorSingleton;
 import ir.myhome.agent.util.listener.SimpleErrorListener;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -65,7 +68,7 @@ public final class InstrumentationInstaller {
                     var commonMatcher = isMethod().and(not(isConstructor())).and(not(isAbstract())).and(isPublic()).and(not(isStatic()));
 
                     // Advice برای Timing و Percentile
-                    b = b.visit(Advice.to(TimingAdviceEnter.class, TimingAdviceExitDynamic.class).on(commonMatcher));
+                    b = b.visit(Advice.to(TimingAdvice.class).on(commonMatcher));
                     b = b.visit(Advice.to(PercentileAdvice.class).on(commonMatcher));
 
                     return b;
