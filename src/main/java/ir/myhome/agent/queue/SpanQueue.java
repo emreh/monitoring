@@ -1,12 +1,14 @@
 package ir.myhome.agent.queue;
 
-public interface SpanQueue {
+public interface SpanQueue<T> {
 
-    boolean offer(Object span);
+    boolean offer(T item);     // non-blocking
 
-    Object poll();
-
-    Object take() throws InterruptedException;
+    T poll();                  // non-blocking
 
     int size();
+
+    long dropped();
+
+    int capacity();
 }

@@ -1,44 +1,57 @@
 package ir.myhome.agent.exporter;
 
-import ir.myhome.agent.collector.SpanCollector;
-import ir.myhome.agent.core.Span;
 import ir.myhome.agent.queue.SpanQueue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class AsyncSpanExporter {
+public class AsyncSpanExporter<T> {
 
-    private final SpanQueue queue;
-    private final SpanCollector collector;
-    private final ExecutorService executor;
+    private final SpanQueue<T> queue;
+    private final int batchSize;
+    private final ExecutorService worker;
 
-    public AsyncSpanExporter(SpanQueue queue, SpanCollector collector, int threads) {
+    public AsyncSpanExporter(SpanQueue<T> queue, int batchSize) {
         this.queue = queue;
-        this.collector = collector;
-        this.executor = Executors.newFixedThreadPool(threads);
-        startWorkers(threads);
+        this.batchSize = batchSize;
+        this.worker = Executors.newSingleThreadExecutor();
     }
 
-    private void startWorkers(int threads) {
-        for (int i = 0; i < threads; i++) {
-            executor.submit(() -> {
-                while (true) {
-                    try {
-                        Span span = (Span) queue.take(); // بلوکه می‌شود تا span آماده شود
-                        collector.collect(span);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+    public void start() {
+        worker.submit(this::runLoop);
+    }
+
+    private void runLoop() {
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                int currentBatchSize = Math.min(queue.size(), batchSize);
+                if (currentBatchSize == 0) {
+                    Thread.sleep(5); // backoff نرم
+                    continue;
                 }
-            });
+
+                List<T> batch = new ArrayList<>(currentBatchSize);
+                for (int i = 0; i < currentBatchSize; i++) {
+                    T item = queue.poll();
+                    if (item == null) break;
+                    batch.add(item);
+                }
+
+                if (!batch.isEmpty()) export(batch);
+            }
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
         }
     }
 
-    public void shutdown() {
-        executor.shutdownNow();
+    protected void export(List<T> batch) {
+        // Override در تست یا Exporter واقعی
+        System.out.println("exported batch size = " + batch.size());
+    }
+
+    public void stop() {
+        worker.shutdownNow();
     }
 }
