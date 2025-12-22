@@ -1,29 +1,30 @@
 package ir.myhome.agent.holder;
 
-import ir.myhome.agent.feature.FeatureFlagManager;
-import ir.myhome.agent.queue.SpanQueue;
+import ir.myhome.agent.policy.PolicyStats;
+import ir.myhome.agent.policy.ReferencePolicy;
+import ir.myhome.agent.policy.SafePolicyEngine;
+import ir.myhome.agent.policy.contract.PolicyEngine;
 
 public final class AgentHolder {
 
-    private static volatile FeatureFlagManager featureFlagManager;
-    private static volatile SpanQueue spanQueue;
+    private static volatile PolicyEngine policyEngine;
+    private static volatile PolicyStats policyStats;
 
     private AgentHolder() {
     }
 
-    public static void setFeatureFlagManager(FeatureFlagManager ffm) {
-        featureFlagManager = ffm;
+    public static void initPolicy() {
+        PolicyStats stats = new PolicyStats();
+        PolicyEngine ref = new ReferencePolicy(10);
+        policyEngine = new SafePolicyEngine(ref, stats);
+        policyStats = stats;
     }
 
-    public static FeatureFlagManager getFeatureFlagManager() {
-        return featureFlagManager;
+    public static PolicyEngine getPolicyEngine() {
+        return policyEngine;
     }
 
-    public static void setSpanQueue(SpanQueue q) {
-        spanQueue = q;
-    }
-
-    public static SpanQueue getSpanQueue() {
-        return spanQueue;
+    public static PolicyStats getPolicyStats() {
+        return policyStats;
     }
 }

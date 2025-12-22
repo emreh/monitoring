@@ -8,6 +8,7 @@ import ir.myhome.agent.exporter.BatchExporter;
 import ir.myhome.agent.exporter.ConsoleExporter;
 import ir.myhome.agent.exporter.HttpExporter;
 import ir.myhome.agent.feature.FeatureFlagManager;
+import ir.myhome.agent.holder.AgentHolder;
 import ir.myhome.agent.scheduler.PercentileBatchScheduler;
 import ir.myhome.agent.ui.StatusServer;
 import ir.myhome.agent.worker.MetricExporterWorker;
@@ -28,6 +29,9 @@ public final class AgentMain {
         AgentContext.init(cfg);
 
         new FeatureFlagManager(cfg.instrumentation);
+
+        // init Policy
+//        AgentHolder.initPolicy();
 
         // ---------------- Metric Collector ----------------
         MetricCollector collector = new MetricCollector(cfg);

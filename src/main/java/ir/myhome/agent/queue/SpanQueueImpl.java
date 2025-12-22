@@ -1,5 +1,10 @@
 package ir.myhome.agent.queue;
 
+import ir.myhome.agent.core.Span;
+import ir.myhome.agent.holder.AgentHolder;
+import ir.myhome.agent.policy.contract.*;
+import ir.myhome.agent.util.PolicyUtils;
+
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -18,11 +23,29 @@ public final class SpanQueueImpl<T> implements SpanQueue<T> {
 
     @Override
     public boolean offer(T item) {
+
+        // ---------- Stage 11: Policy Gate ----------
+        if (item instanceof Span span) {
+            PolicyEngine policy = AgentHolder.getPolicyEngine();
+            if (policy != null) {
+                PolicyInput input = new PolicyInput(
+                        PolicyUtils.fastHash64(span.traceId),
+                        OverloadState.NORMAL
+                );
+                Decision decision = policy.evaluate(input);
+                if (decision.type() != DecisionType.ALLOW) {
+                    dropped.incrementAndGet();
+                    return false;
+                }
+            }
+        }
+        // ------------------------------------------
+
         int current;
         do {
             current = size.get();
             if (current >= capacity) {
-                dropped.incrementAndGet(); // دقیق و حساب‌شدنی
+                dropped.incrementAndGet();
                 return false;
             }
         } while (!size.compareAndSet(current, current + 1));
