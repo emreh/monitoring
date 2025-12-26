@@ -2,19 +2,21 @@ package ir.myhome.agent.instrumentation.advice;
 
 import net.bytebuddy.asm.Advice;
 
-/*
-  جایگاه jdbc advice؛ سبک نگه داشته شده — اگر بخواهی می‌توانم مچِرهای هدف را در Installer اضافه کنم.
-  (در این نسخه اولیه ما فقط advice را آماده داریم.)
-*/
+import java.util.concurrent.atomic.AtomicLong;
+
 public final class JdbcAdvice {
 
+    private static final AtomicLong counter = new AtomicLong();
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter() {
-        // minimal
+    public static long enter() {
+        return System.nanoTime();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit() {
-        // minimal
+    public static void exit(@Advice.Enter long start) {
+        long duration = System.nanoTime() - start;
+        long count = counter.incrementAndGet();
+        System.out.println("[JdbcAdvice] JDBC call #" + count + " took " + (duration / 1_000_000.0) + " ms");
     }
 }

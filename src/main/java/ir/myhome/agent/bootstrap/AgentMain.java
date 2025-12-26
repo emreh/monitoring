@@ -1,91 +1,45 @@
 package ir.myhome.agent.bootstrap;
 
-import ir.myhome.agent.collector.*;
 import ir.myhome.agent.config.AgentConfig;
-import ir.myhome.agent.config.AgentConfigLoader;
-import ir.myhome.agent.config.AgentContext;
-import ir.myhome.agent.exporter.BatchExporter;
+import ir.myhome.agent.exporter.AgentExporter;
 import ir.myhome.agent.exporter.ConsoleExporter;
 import ir.myhome.agent.exporter.HttpExporter;
-import ir.myhome.agent.feature.FeatureFlagManager;
 import ir.myhome.agent.holder.AgentHolder;
-import ir.myhome.agent.scheduler.PercentileBatchScheduler;
-import ir.myhome.agent.ui.StatusServer;
-import ir.myhome.agent.worker.MetricExporterWorker;
+import ir.myhome.agent.metrics.MetricSnapshot;
+import ir.myhome.agent.queue.SpanQueueImpl;
+import ir.myhome.agent.status.StatusServer;
+import ir.myhome.agent.worker.BatchWorker;
 
-import java.lang.instrument.Instrumentation;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
-public final class AgentMain {
+public class AgentMain {
 
-    private AgentMain() {
-    }
+    public static void main(String[] args) throws Exception {
+        AgentConfig config = new AgentConfig();
 
-    public static void premain(String args, Instrumentation inst) {
-        System.out.println("[AgentMain] starting agent...");
+        // Queue و BatchWorker
+        SpanQueueImpl<ir.myhome.agent.core.Span> queue = new SpanQueueImpl<>(config.queueCapacity);
 
-        // ---------------- Load Config ----------------
-        AgentConfig cfg = AgentConfigLoader.loadYaml("agent-config.yml", AgentConfig.class);
-        if (cfg == null) throw new IllegalStateException("Agent config not loaded");
-        AgentContext.init(cfg);
-
-        new FeatureFlagManager(cfg.instrumentation);
-
-        // init Policy
-//        AgentHolder.initPolicy();
-
-        // ---------------- Metric Collector ----------------
-        MetricCollector collector = new MetricCollector(cfg);
-
-        // ---------------- Exporter انتخابی ----------------
-        Runnable exporterRunnable = switch (cfg.exporter.type.toLowerCase()) {
-            case "http" -> new HttpExporter(cfg.exporter.endpoint);
-            case "batch" -> new BatchExporter(collector.getExportQueue(), cfg.exporter.batchSize, 2000);
-            default -> new ConsoleExporter();
-        };
-        Thread exporterThread = new Thread(exporterRunnable, "ExporterThread");
-        exporterThread.setDaemon(true);
-        exporterThread.start();
-
-        // ---------------- Status Server ----------------
-        StatusServer statusServer = null;
-        try {
-            statusServer = new StatusServer(8082, collector.getExportQueue());
-            statusServer.start();
-        } catch (Exception e) {
-            System.err.println("[AgentMain] status server failed: " + e.getMessage());
+        AgentExporter exporter;
+        if ("console".equalsIgnoreCase(config.exporter.type)) {
+            exporter = new ConsoleExporter();
+        } else {
+            exporter = new HttpExporter(config.exporter.endpoint);
         }
 
-        // ---------------- MetricExporterWorker ----------------
-        MetricExporterWorker exporterWorker = new MetricExporterWorker(collector.getExportQueue(), cfg.exporter.batchSize, cfg.pollMillis);
-        exporterWorker.setDaemon(true);
-        exporterWorker.start();
+        BatchWorker worker = new BatchWorker(queue, exporter, config);
+        Thread workerThread = new Thread(worker);
+        workerThread.start();
 
-        // ---------------- Instrumentation ----------------
-        try {
-            InstrumentationInstaller.install(inst, cfg);
-        } catch (Throwable t) {
-            System.err.println("[AgentMain] instrumentation install failed: " + t.getMessage());
-            t.printStackTrace();
-        }
+        AgentHolder.setExporter(exporter);
+        AgentHolder.setSpanQueue(queue);
 
-        // ---------------- Composite Percentile Collector ----------------
-        //1 میلی‌ثانیه کمترین مقدار قابل اندازه‌گیری در HDRHistogram
-        //3600000 بالاترین مقدار (مثلا یک ساعت به میلی‌ثانیه)
-        //3 دقت اعشاری
-        //100.0 ضریب فشرده‌سازی t-digest
-        PercentileCollector percentileCollector = new PercentileOrchestrator(new HDRHistogramCollector(1, 3600000, 3), new TDigestCollector(100.0));
-        PercentileBatchScheduler.start(percentileCollector, 2000);
+        // StatusServer
+        BlockingQueue<MetricSnapshot> statusQueue = new LinkedBlockingQueue<>();
+        StatusServer statusServer = new StatusServer(config.statusPort, statusQueue);
+        statusServer.start();
 
-        // ---------------- Shutdown Hook ----------------
-        final StatusServer finalStatusServer = statusServer;
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("[AgentMain] shutdown initiated");
-            if (finalStatusServer != null) finalStatusServer.stop();
-            exporterThread.interrupt();
-            exporterWorker.shutdown();
-            PercentileBatchScheduler.stop();
-        }, "agent-shutdown-hook"));
-
-        System.out.println("[AgentMain] agent started successfully");
+        System.out.println("[AgentMain] Agent started successfully.");
     }
 }

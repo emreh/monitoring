@@ -1,13 +1,15 @@
 package ir.myhome.agent.exporter;
 
+import ir.myhome.agent.core.Span;
 import ir.myhome.agent.util.JsonSerializer;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
-public final class HttpExporter implements Runnable {
+public final class HttpExporter implements AgentExporter {
 
     private final String endpoint;
     private final int connectTimeoutMs = 2000;
@@ -17,7 +19,14 @@ public final class HttpExporter implements Runnable {
         this.endpoint = endpoint;
     }
 
-    public void export(java.util.Map<String, Object> span) {
+    @Override
+    public void export(List<Span> batch) {
+        for (Span span : batch) {
+            send(span);
+        }
+    }
+
+    private void send(Span span) {
         HttpURLConnection conn = null;
         try {
             URL u = new URL(endpoint);
@@ -43,10 +52,5 @@ public final class HttpExporter implements Runnable {
         } finally {
             if (conn != null) conn.disconnect();
         }
-    }
-
-    @Override
-    public void run() {
-
     }
 }

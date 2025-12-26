@@ -1,30 +1,28 @@
 package ir.myhome.agent.holder;
 
-import ir.myhome.agent.policy.PolicyStats;
-import ir.myhome.agent.policy.ReferencePolicy;
-import ir.myhome.agent.policy.SafePolicyEngine;
-import ir.myhome.agent.policy.contract.PolicyEngine;
+import ir.myhome.agent.exporter.AgentExporter;
+import ir.myhome.agent.queue.SpanQueue;
 
 public final class AgentHolder {
 
-    private static volatile PolicyEngine policyEngine;
-    private static volatile PolicyStats policyStats;
+    private static volatile AgentExporter exporter;
+    private static volatile SpanQueue<?> spanQueue;
 
-    private AgentHolder() {
+    private AgentHolder() {}
+
+    public static void setExporter(AgentExporter exp) {
+        exporter = exp;
     }
 
-    public static void initPolicy() {
-        PolicyStats stats = new PolicyStats();
-        PolicyEngine ref = new ReferencePolicy(10);
-        policyEngine = new SafePolicyEngine(ref, stats);
-        policyStats = stats;
+    public static AgentExporter getExporter() {
+        return exporter;
     }
 
-    public static PolicyEngine getPolicyEngine() {
-        return policyEngine;
+    public static void setSpanQueue(SpanQueue<?> queue) {
+        spanQueue = queue;
     }
 
-    public static PolicyStats getPolicyStats() {
-        return policyStats;
+    public static SpanQueue<?> getSpanQueue() {
+        return spanQueue;
     }
 }

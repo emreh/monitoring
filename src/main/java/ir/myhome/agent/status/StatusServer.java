@@ -1,4 +1,4 @@
-package ir.myhome.agent.ui;
+package ir.myhome.agent.status;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -24,7 +24,7 @@ public final class StatusServer {
     public void start() throws Exception {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/status", new StatusHandler());
-        server.setExecutor(null); // default executor
+        server.setExecutor(null); // default
         server.start();
         System.out.println("[StatusServer] started at http://localhost:" + port + "/status");
     }
