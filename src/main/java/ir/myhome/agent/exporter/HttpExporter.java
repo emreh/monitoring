@@ -9,48 +9,40 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-public final class HttpExporter implements AgentExporter {
+public class HttpExporter implements AgentExporter {
 
     private final String endpoint;
-    private final int connectTimeoutMs = 2000;
-    private final int readTimeoutMs = 5000;
 
     public HttpExporter(String endpoint) {
         this.endpoint = endpoint;
     }
 
     @Override
-    public void export(List<Span> batch) {
-        for (Span span : batch) {
-            send(span);
-        }
-    }
+    public void export(List<Span> spans) {
+        if (spans == null || spans.isEmpty()) return;
 
-    private void send(Span span) {
-        HttpURLConnection conn = null;
         try {
-            URL u = new URL(endpoint);
-            conn = (HttpURLConnection) u.openConnection();
+            URL url = new URL(endpoint);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
-            conn.setConnectTimeout(connectTimeoutMs);
-            conn.setReadTimeout(readTimeoutMs);
             conn.setDoOutput(true);
-
-            byte[] payload = JsonSerializer.toJson(span).getBytes(StandardCharsets.UTF_8);
-
             conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Content-Length", Integer.toString(payload.length));
+
+            // Serialize batch
+            byte[] payload = JsonSerializer.toJson(spans).getBytes(StandardCharsets.UTF_8);
+
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(payload);
             }
+
             int code = conn.getResponseCode();
-            if (code >= 400) {
-                System.err.println("[HttpExporter] remote returned code=" + code);
+            if (code != 200) {
+                System.err.println("[HttpExporter] send failed: HTTP " + code);
             }
-        } catch (Throwable t) {
-            System.err.println("[HttpExporter] send failed: " + t.getMessage());
-        } finally {
-            if (conn != null) conn.disconnect();
+
+            conn.disconnect();
+        } catch (Exception e) {
+            System.err.println("[HttpExporter] send failed: " + e.getMessage());
         }
     }
 }

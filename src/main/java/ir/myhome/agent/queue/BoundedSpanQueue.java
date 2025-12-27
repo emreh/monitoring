@@ -1,5 +1,6 @@
 package ir.myhome.agent.queue;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -55,5 +56,17 @@ public final class BoundedSpanQueue<T> implements SpanQueue<T> {
     @Override
     public int capacity() {
         return capacity;
+    }
+
+    @Override
+    public int drainTo(List<T> dst, int maxElements) {
+        int count = 0;
+        while (count < maxElements) {
+            T item = queue.poll();
+            if (item == null) break;
+            dst.add(item);
+            count++;
+        }
+        return count;
     }
 }

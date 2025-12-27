@@ -20,10 +20,10 @@ public final class AgentConfig {
     public int percentilePrecision = 2;
 
     public static final class ExporterConfig {
-        public String type = "console";
+        public String type = "http";
         public int batchSize = 10;
         public int capacity = 10000;
-        public String endpoint = "http://localhost:8080/collect";
+        public String endpoint = "http://localhost:8081/spring-test/api/collect";
     }
 
     public static final class InstrumentationConfig {
