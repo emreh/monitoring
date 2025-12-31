@@ -33,11 +33,6 @@ public class MonitoringServer {
 
             long currentQueue = (collector != null) ? collector.getExportQueue().size() : 0;
 
-            // اگر دیتایی در صف هست، به کل اضافه کن (فقط برای نمایش در دمو)
-            if (currentQueue > 0) {
-                TOTAL_SPANS.addAndGet(currentQueue);
-            }
-
             String json = String.format(
                     "{\"usedMemory\": %.2f, \"queueSize\": %d, \"total\": %d, \"throughput\": %d}",
                     (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024 * 1024),
