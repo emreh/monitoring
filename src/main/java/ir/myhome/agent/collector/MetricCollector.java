@@ -4,6 +4,7 @@ import com.tdunning.math.stats.TDigest;
 import ir.myhome.agent.config.AgentConfig;
 import ir.myhome.agent.metrics.MetricData;
 import ir.myhome.agent.metrics.MetricSnapshot;
+import ir.myhome.agent.status.MonitoringServer;
 import org.HdrHistogram.Histogram;
 
 import java.util.concurrent.BlockingQueue;
@@ -27,16 +28,20 @@ public final class MetricCollector {
     public void recordLatency(String metricName, long durationMs) {
         if (!cfg.enableAdvancedMetrics) return;
 
+        MonitoringServer.TOTAL_SPANS.incrementAndGet();
+
         long value = Math.min(durationMs, cfg.percentileMaxValueMs);
         histogramMap.computeIfAbsent(metricName, k -> new Histogram(cfg.percentileMaxValueMs, cfg.percentilePrecision)).recordValue(value);
         tDigestMap.computeIfAbsent(metricName, k -> TDigest.createDigest(100)).add(value);
     }
 
     public void incrementCount(String metricName) {
+        MonitoringServer.TOTAL_SPANS.incrementAndGet();
         metrics.computeIfAbsent(metricName, k -> new MetricData()).incrementCount();
     }
 
     public void incrementError(String metricName) {
+        MonitoringServer.TOTAL_SPANS.incrementAndGet();
         metrics.computeIfAbsent(metricName, k -> new MetricData()).incrementError();
     }
 

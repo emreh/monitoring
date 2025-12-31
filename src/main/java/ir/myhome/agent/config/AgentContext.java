@@ -1,7 +1,10 @@
 package ir.myhome.agent.config;
 
+import ir.myhome.agent.collector.MetricCollector;
+
 public final class AgentContext {
     private static volatile AgentConfig config;
+    private static MetricCollector globalCollector;
 
     public static void init(AgentConfig cfg) {
         if (config != null) {
@@ -16,5 +19,12 @@ public final class AgentContext {
         }
         return config;
     }
-}
 
+    public static void setCollector(MetricCollector col) {
+        globalCollector = col;
+    }
+
+    public static MetricCollector getCollector() {
+        return globalCollector;
+    }
+}

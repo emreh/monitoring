@@ -1,5 +1,6 @@
 package ir.myhome.agent.instrumentation.advice;
 
+import ir.myhome.agent.config.AgentContext;
 import ir.myhome.agent.context.TraceAwareCallable;
 import ir.myhome.agent.context.TraceAwareRunnable;
 import ir.myhome.agent.core.Span;
@@ -18,16 +19,27 @@ public final class TimingAdvice {
 
     @Advice.OnMethodEnter
     public static long onEnter(@Advice.Origin String method) {
-        return System.currentTimeMillis();
+        return System.nanoTime();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void onExit(@Advice.Origin String method, @Advice.Enter long start, @Advice.Thrown Throwable throwable, @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Object returnValue) {
+    public static void onExit(@Advice.Origin String method, @Advice.Enter long startTime, @Advice.Thrown Throwable throwable, @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Object returnValue) {
 
-        long duration = System.currentTimeMillis() - start;
+        long duration = (System.nanoTime() - startTime) / 1_000_000;
         String traceId = TraceContextHolder.currentTraceId();
 
-        Span span = new Span(traceId, traceId + "-" + System.nanoTime(), null, "service", method, start, duration);
+        // دسترسی اساسی به کالکتور از طریق پل AgentContext
+        var collector = AgentContext.getCollector();
+
+        if (collector != null) {
+            collector.recordLatency(method, duration);
+            collector.incrementCount(method);
+            if (throwable != null) {
+                collector.incrementError(method);
+            }
+        }
+
+        Span span = new Span(traceId, traceId + "-" + System.nanoTime(), null, "service", method, startTime, duration);
         TraceContextHolder.pushSpan(span);
 
         PercentileBatchScheduler.record(duration);
