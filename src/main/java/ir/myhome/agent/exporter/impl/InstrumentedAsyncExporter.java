@@ -1,4 +1,4 @@
-package ir.myhome.agent.exporter;
+package ir.myhome.agent.exporter.impl;
 
 import ir.myhome.agent.collector.LatencyCollector;
 import ir.myhome.agent.queue.SpanQueue;

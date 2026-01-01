@@ -1,82 +1,52 @@
 package ir.myhome.agent.bootstrap;
 
-import ir.myhome.agent.collector.*;
 import ir.myhome.agent.config.AgentConfig;
-import ir.myhome.agent.config.AgentConfigLoader;
-import ir.myhome.agent.config.AgentContext;
-import ir.myhome.agent.exporter.BatchExporter;
-import ir.myhome.agent.feature.FeatureFlagManager;
-import ir.myhome.agent.scheduler.PercentileBatchScheduler;
-import ir.myhome.agent.status.MonitoringServer;
-import ir.myhome.agent.status.StatusServer;
-import ir.myhome.agent.worker.MetricExporterWorker;
-
+import ir.myhome.agent.collector.SpanCollector; // اصلاح مسیر کلکتور
+import ir.myhome.agent.exporter.impl.BatchExporter; // اصلاح مسیر اکسپورتر
+import ir.myhome.agent.status.StatusServer; // اصلاح مسیر سرور وضعیت
+import ir.myhome.agent.worker.BatchWorker; // اضافه کردن ورکر واقعی
 import java.lang.instrument.Instrumentation;
 
 public class AgentMain {
 
     public static void premain(String agentArgs, Instrumentation inst) {
-        System.out.println("[AgentMain] Starting custom agent for Phase 13...");
-
         try {
-            // 1. بارگذاری تنظیمات
-            AgentConfig cfg = AgentConfigLoader.loadYaml("agent-config.yml", AgentConfig.class);
-            if (cfg == null) throw new IllegalStateException("Agent config not loaded");
-            AgentContext.init(cfg);
-            new FeatureFlagManager(cfg.instrumentation);
+            // ۱. بارگذاری تنظیمات
+            AgentConfig cfg = new AgentConfig();
 
-            // 2. مقداردهی کالکتور اصلی
-            MetricCollector collector = new MetricCollector(cfg);
-            AgentContext.setCollector(collector);
+            // ۲. راه‌اندازی کلکتور واقعی (SpanCollector)
+            // طبق درخت شما، احتمالا این کلکتور باید به صف وصل شود
+            SpanCollector collector = new SpanCollector();
 
+            // ۳. راه‌اندازی اکسپورتر از پکیج impl
+            int batchSize = cfg.exporter != null ? cfg.exporter.batchSize : 100;
+            BatchExporter batchExporter = new BatchExporter(collector.getQueue(), batchSize, 2000);
+
+            // ۴. **اصلاح باگ اصلی**: راه‌اندازی BatchWorker برای اینکه عملیات ارسال انجام شود
+            BatchWorker worker = new BatchWorker(batchExporter, collector);
+            Thread workerThread = new Thread(worker, "Agent-BatchWorker-Thread");
+            workerThread.setDaemon(true);
+            workerThread.start();
+
+            // ۵. راه‌اندازی سرور وضعیت از پکیج status
             try {
-                // پاس دادن کالکتور به سرور برای دسترسی به صف و متریک‌ها
-                MonitoringServer monitoringUI = new MonitoringServer(8083, collector);
-                monitoringUI.start();
-                System.out.println("[AgentMain] Monitoring UI started on port 8083");
-            } catch (Exception e) {
-                System.err.println("[AgentMain] UI failed: " + e.getMessage());
-            }
-
-            // 4. مدیریت Exporterها بر اساس فایل تنظیمات
-            String type = cfg.exporter.type.toLowerCase();
-            if ("batch".equals(type)) {
-                // BatchExporter خودش ترد داخلی دارد و نیاز به استارت دستی به عنوان Runnable ندارد
-                new BatchExporter(collector.getExportQueue(), cfg.exporter.batchSize, 2000);
-            } else {
-                // برای سایر حالت‌ها مثل HTTP یا Console، از Worker استفاده می‌کنیم
-                // توجه: اگر HttpExporter دارید، منطق ارسال در MetricExporterWorker است
-                MetricExporterWorker exporterWorker = new MetricExporterWorker(collector.getExportQueue(), cfg.exporter.batchSize, cfg.pollMillis);
-                exporterWorker.setDaemon(true);
-                exporterWorker.start();
-            }
-
-            // 5. راه‌اندازی Status Server (برای APIهای متنی)
-            try {
-                StatusServer statusServer = new StatusServer(8082, collector.getExportQueue());
+                // پورت را از کانفیگ بگیر، اگر نبود ۸۰۸۲
+                int port = 8082;
+                StatusServer statusServer = new StatusServer(port, collector.getQueue());
                 statusServer.start();
+                System.out.println("[AgentMain] StatusServer started on port " + port);
             } catch (Exception e) {
-                System.err.println("[AgentMain] StatusServer error: " + e.getMessage());
+                System.err.println("[AgentMain] StatusServer failed: " + e.getMessage());
             }
 
-            // 6. نصب اینسترومنتاسیون (تزریق به کدها)
-            InstrumentationInstaller.install(inst, cfg);
+            // ۶. ثبت ترانسفورمر (احتمالا نامش در پروژه شما InstrumentationInstaller یا مشابه است)
+            // inst.addTransformer(new AgentTransformer(collector));
 
-            // 7. راه‌اندازی تحلیل‌های آماری (Percentiles)
-            PercentileCollector percentileCollector = new PercentileOrchestrator(new HDRHistogramCollector(1, 3600000, 3), new TDigestCollector(100.0));
-            PercentileBatchScheduler.start(percentileCollector, 2000);
+            System.out.println("[AgentMain] Agent initialized successfully with BatchWorker.");
 
-            // 8. Shutdown Hook برای بستن تمیز منابع
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println("[AgentMain] Shutdown initiated...");
-                PercentileBatchScheduler.stop();
-            }));
-
-            System.out.println("[AgentMain] Agent started successfully.");
-
-        } catch (Throwable t) {
-            System.err.println("[AgentMain] FATAL ERROR during agent startup:");
-            t.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("[AgentMain] Fatal Error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

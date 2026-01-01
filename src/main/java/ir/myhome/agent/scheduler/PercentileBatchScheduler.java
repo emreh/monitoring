@@ -1,7 +1,7 @@
 package ir.myhome.agent.scheduler;
 
 import ir.myhome.agent.collector.PercentileCollector;
-import ir.myhome.agent.exporter.PercentileExporter;
+import ir.myhome.agent.exporter.impl.PercentileExporter;
 
 public final class PercentileBatchScheduler {
 

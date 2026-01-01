@@ -1,6 +1,7 @@
-package ir.myhome.agent.exporter;
+package ir.myhome.agent.exporter.impl;
 
 import ir.myhome.agent.core.Span;
+import ir.myhome.agent.exporter.AgentExporter;
 import ir.myhome.agent.util.JsonSerializer;
 
 import java.io.OutputStream;
