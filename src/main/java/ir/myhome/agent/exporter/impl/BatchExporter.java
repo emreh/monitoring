@@ -1,30 +1,35 @@
 package ir.myhome.agent.exporter.impl;
 
+import ir.myhome.agent.core.Aggregator;
 import ir.myhome.agent.core.Span;
 import ir.myhome.agent.exporter.AgentExporter;
+import ir.myhome.agent.queue.SpanQueue;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class BatchExporter {
-    private final BlockingQueue<Span> queue;
+public class BatchExporter implements AgentExporter {
+
+    private final SpanQueue<Span> queue;
     private final int batchSize;
     private final ScheduledExecutorService scheduler;
     private final List<AgentExporter> exporters = new ArrayList<>();
+    private final Aggregator aggregator;  // استفاده از Aggregator برای پردازش داده‌ها
 
-    // فیلد برای کنترل آنلاین (مطیع بودن)
     public static volatile boolean muteMode = false;
 
-    public BatchExporter(BlockingQueue<Span> queue, int batchSize, long intervalMs) {
+    // سازنده برای انتخاب چندین اکسپورتر
+    public BatchExporter(SpanQueue<Span> queue, int batchSize, long intervalMs, List<AgentExporter> selectedExporters, Aggregator aggregator) {
         this.queue = queue;
         this.batchSize = batchSize;
+        // ذخیره‌سازی Aggregator
+        this.aggregator = aggregator;
 
-        // اضافه کردن اکسپورتر پیش‌فرض
-        this.exporters.add(new ConsoleExporter());
+        // اضافه کردن اکسپورترها بر اساس انتخاب‌های ورودی
+        this.exporters.addAll(selectedExporters);
 
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "Agent-Batch-Worker");
@@ -35,29 +40,28 @@ public class BatchExporter {
         this.scheduler.scheduleAtFixedRate(this::process, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
     }
 
-    public void addExporter(AgentExporter exporter) {
-        this.exporters.add(exporter);
-    }
-
+    // پردازش داده‌ها و ارسال به همه اکسپورترها
     private void process() {
         try {
-            // ۱. سیستم مطیع: اگر دستور خفه باش صادر شده، یا صف خیلی پر است، ارسال نکن
             if (muteMode) {
                 return;
             }
 
-            // ۲. برداشتن دسته‌ای از صف
             List<Span> batch = new ArrayList<>();
-            queue.drainTo(batch, batchSize);
+            int drained = queue.drainTo(batch, batchSize);
 
-            // ۳. ارسال به تمام اکسپورترها
             if (!batch.isEmpty()) {
+                // استفاده از Aggregator برای محاسبه درصد
+                double p50 = aggregator.getPercentile(50);  // گرفتن P50 برای داده‌ها
+                System.out.println("P50 Percentile: " + p50);
+
+                // ارسال داده‌ها به همه اکسپورترهای انتخاب‌شده
                 for (AgentExporter exporter : exporters) {
                     try {
                         exporter.export(batch);
                     } catch (Exception e) {
-                        // خرابی یک اکسپورتر نباید روی بقیه اثر بگذارد
                         System.err.println("[BatchExporter] Error in " + exporter.getClass().getSimpleName());
+                        e.printStackTrace();
                     }
                 }
             }
@@ -65,4 +69,22 @@ public class BatchExporter {
             e.printStackTrace();
         }
     }
+
+    @Override
+    public void export(List<Span> batch) {
+        if (batch == null || batch.isEmpty()) {
+            System.out.println("[BatchExporter] No spans to export.");
+            return;
+        }
+
+        for (AgentExporter exporter : exporters) {
+            try {
+                exporter.export(batch);  // ارسال داده‌ها به همه اکسپورترها
+            } catch (Exception e) {
+                System.err.println("[BatchExporter] Error in " + exporter.getClass().getSimpleName());
+                e.printStackTrace();
+            }
+        }
+    }
 }
+

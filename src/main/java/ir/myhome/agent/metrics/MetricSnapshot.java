@@ -16,10 +16,7 @@ public final class MetricSnapshot {
     private final double tdigestP90;
     private final double tdigestP99;
 
-    public MetricSnapshot(
-            String metricName, long count, long errorCount,
-            long p50, long p90, long p99,
-            double tdigestP50, double tdigestP90, double tdigestP99) {
+    public MetricSnapshot(String metricName, long count, long errorCount, long p50, long p90, long p99, double tdigestP50, double tdigestP90, double tdigestP99) {
         this.metricName = metricName;
         this.count = count;
         this.errorCount = errorCount;
@@ -32,28 +29,44 @@ public final class MetricSnapshot {
     }
 
     // Getters
-    public String getMetricName() { return metricName; }
-    public long getCount() { return count; }
-    public long getErrorCount() { return errorCount; }
-    public long getP50() { return p50; }
-    public long getP90() { return p90; }
-    public long getP99() { return p99; }
-    public double getTDigestP50() { return tdigestP50; }
-    public double getTDigestP90() { return tdigestP90; }
-    public double getTDigestP99() { return tdigestP99; }
+    public String getMetricName() {
+        return metricName;
+    }
+
+    public long getCount() {
+        return count;
+    }
+
+    public long getErrorCount() {
+        return errorCount;
+    }
+
+    public long getP50() {
+        return p50;
+    }
+
+    public long getP90() {
+        return p90;
+    }
+
+    public long getP99() {
+        return p99;
+    }
+
+    public double getTDigestP50() {
+        return tdigestP50;
+    }
+
+    public double getTDigestP90() {
+        return tdigestP90;
+    }
+
+    public double getTDigestP99() {
+        return tdigestP99;
+    }
 
     @Override
     public String toString() {
-        return "MetricSnapshot[" +
-                "metricName=" + metricName +
-                ", count=" + count +
-                ", errorCount=" + errorCount +
-                ", p50=" + p50 +
-                ", p90=" + p90 +
-                ", p99=" + p99 +
-                ", tdigestP50=" + tdigestP50 +
-                ", tdigestP90=" + tdigestP90 +
-                ", tdigestP99=" + tdigestP99 +
-                "]";
+        return "MetricSnapshot[" + "metricName=" + metricName + ", count=" + count + ", errorCount=" + errorCount + ", p50=" + p50 + ", p90=" + p90 + ", p99=" + p99 + ", tdigestP50=" + tdigestP50 + ", tdigestP90=" + tdigestP90 + ", tdigestP99=" + tdigestP99 + "]";
     }
 }

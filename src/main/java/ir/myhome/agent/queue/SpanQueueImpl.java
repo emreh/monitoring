@@ -17,7 +17,12 @@ public final class SpanQueueImpl<T> implements SpanQueue<T> {
     public boolean offer(T item) {
         boolean success = queue.offer(item);
 
-        if (!success) dropped.incrementAndGet();
+        if (!success) {
+            dropped.incrementAndGet();
+            System.err.println("[SpanQueue] Failed to add item to queue, total dropped: " + dropped.get());
+        } else {
+            System.out.println("[SpanQueue] Added item to queue. Current size: " + queue.size());
+        }
 
         return success;
     }

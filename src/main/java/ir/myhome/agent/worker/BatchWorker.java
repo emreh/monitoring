@@ -1,6 +1,5 @@
 package ir.myhome.agent.worker;
 
-import ir.myhome.agent.config.AgentConfig;
 import ir.myhome.agent.core.Span;
 import ir.myhome.agent.exporter.AgentExporter;
 import ir.myhome.agent.queue.SpanQueue;
@@ -12,18 +11,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class BatchWorker implements Runnable {
 
     private final SpanQueue<Span> queue;
-    private final AgentExporter exporter;
+    private final AgentExporter exporter;  // حالا از نوع AgentExporter
     private final int batchSize;
     private final long exportIntervalMillis;
 
     private final AtomicBoolean running = new AtomicBoolean(true);
     private volatile Thread workerThread;
 
-    public BatchWorker(SpanQueue<Span> queue, AgentExporter exporter, AgentConfig config) {
+    public BatchWorker(SpanQueue<Span> queue, AgentExporter exporter, int batchSize, long exportIntervalMillis) {
         this.queue = queue;
         this.exporter = exporter;
-        this.batchSize = config.exporter.batchSize;
-        this.exportIntervalMillis = config.pollMillis;
+        this.batchSize = batchSize;
+        this.exportIntervalMillis = exportIntervalMillis;
     }
 
     public void stop() {
@@ -52,7 +51,7 @@ public class BatchWorker implements Runnable {
                 }
 
                 try {
-                    Thread.sleep(exportIntervalMillis);
+                    Thread.sleep(exportIntervalMillis); // Adjusting the sleep interval for batch export
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -66,14 +65,12 @@ public class BatchWorker implements Runnable {
         try {
             exporter.export(batch);
         } catch (Throwable t) {
-            // Stage 12: isolate failure, no retry
             System.err.println("Exporter failed: " + t.getMessage());
         }
 
-        // Log dropped spans
         long dropped = queue.dropped();
         if (dropped > 0) {
-            System.err.println("Stage 12 Warning: " + dropped + " spans were dropped.");
+            System.err.println("Warning: " + dropped + " spans were dropped.");
         }
     }
 

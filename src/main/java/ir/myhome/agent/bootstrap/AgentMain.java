@@ -1,11 +1,23 @@
 package ir.myhome.agent.bootstrap;
 
+import ir.myhome.agent.collector.SpanCollector;
 import ir.myhome.agent.config.AgentConfig;
-import ir.myhome.agent.collector.SpanCollector; // اصلاح مسیر کلکتور
-import ir.myhome.agent.exporter.impl.BatchExporter; // اصلاح مسیر اکسپورتر
-import ir.myhome.agent.status.StatusServer; // اصلاح مسیر سرور وضعیت
-import ir.myhome.agent.worker.BatchWorker; // اضافه کردن ورکر واقعی
+import ir.myhome.agent.core.Aggregator;
+import ir.myhome.agent.core.MetricsAggregator;
+import ir.myhome.agent.core.Span;
+import ir.myhome.agent.exporter.AgentExporter;
+import ir.myhome.agent.exporter.impl.BatchExporter;
+import ir.myhome.agent.exporter.impl.ConsoleExporter;
+import ir.myhome.agent.exporter.impl.FileExporter;
+import ir.myhome.agent.exporter.impl.KafkaExporter;
+import ir.myhome.agent.queue.SpanQueue;
+import ir.myhome.agent.queue.SpanQueueImpl;
+import ir.myhome.agent.status.StatusServer;
+import ir.myhome.agent.worker.BatchWorker;
+
 import java.lang.instrument.Instrumentation;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AgentMain {
 
@@ -13,40 +25,69 @@ public class AgentMain {
         try {
             // ۱. بارگذاری تنظیمات
             AgentConfig cfg = new AgentConfig();
-
-            // ۲. راه‌اندازی کلکتور واقعی (SpanCollector)
-            // طبق درخت شما، احتمالا این کلکتور باید به صف وصل شود
-            SpanCollector collector = new SpanCollector();
-
-            // ۳. راه‌اندازی اکسپورتر از پکیج impl
-            int batchSize = cfg.exporter != null ? cfg.exporter.batchSize : 100;
-            BatchExporter batchExporter = new BatchExporter(collector.getQueue(), batchSize, 2000);
-
-            // ۴. **اصلاح باگ اصلی**: راه‌اندازی BatchWorker برای اینکه عملیات ارسال انجام شود
-            BatchWorker worker = new BatchWorker(batchExporter, collector);
-            Thread workerThread = new Thread(worker, "Agent-BatchWorker-Thread");
-            workerThread.setDaemon(true);
-            workerThread.start();
-
-            // ۵. راه‌اندازی سرور وضعیت از پکیج status
-            try {
-                // پورت را از کانفیگ بگیر، اگر نبود ۸۰۸۲
-                int port = 8082;
-                StatusServer statusServer = new StatusServer(port, collector.getQueue());
-                statusServer.start();
-                System.out.println("[AgentMain] StatusServer started on port " + port);
-            } catch (Exception e) {
-                System.err.println("[AgentMain] StatusServer failed: " + e.getMessage());
+            if (cfg == null) {
+                throw new IllegalStateException("Failed to load AgentConfig.");
             }
 
-            // ۶. ثبت ترانسفورمر (احتمالا نامش در پروژه شما InstrumentationInstaller یا مشابه است)
-            // inst.addTransformer(new AgentTransformer(collector));
+            // ایجاد شیء Aggregator
+            MetricsAggregator metricsAggregator = new MetricsAggregator();
+            Aggregator aggregator = new Aggregator(metricsAggregator);
 
+            // ۲. راه‌اندازی صف برای نگهداری داده‌ها
+            SpanQueue<Span> spanQueue = new SpanQueueImpl<>(10000);  // استفاده از پیاده‌سازی واقعی SpanQueue
+            SpanCollector collector = new SpanCollector(spanQueue, aggregator);  // هماهنگ با کلاس SpanCollector
+
+            System.out.println("collector => " + collector);
+
+            // ۳. راه‌اندازی BatchExporter برای ارسال داده‌ها
+            int batchSize = cfg.exporter != null ? cfg.exporter.batchSize : 100;
+            if (batchSize <= 0) {
+                throw new IllegalArgumentException("Batch size must be greater than zero.");
+            }
+
+            List<AgentExporter> exporters = new ArrayList<>();
+            exporters.add(new KafkaExporter("localhost:9092", "agent-spans", true, aggregator));
+            exporters.add(new ConsoleExporter(true, aggregator));
+            exporters.add(new FileExporter(true, aggregator));
+
+            BatchExporter batchExporter = new BatchExporter(spanQueue, batchSize, 2000, exporters, aggregator);  // هماهنگ با BatchExporter
+
+            // ۴. راه‌اندازی BatchWorker برای پردازش داده‌ها
+            BatchWorker worker = new BatchWorker(spanQueue, batchExporter, batchSize, 2000);  // هماهنگ با BatchWorker
+            Thread workerThread = new Thread(worker, "Agent-BatchWorker-Thread");
+            workerThread.setDaemon(true);  // تنظیم کارگر به صورت daemon برای جلوگیری از بلوکه شدن برنامه اصلی
+            workerThread.start();
+
+            // بررسی وضعیت thread و اینکه آیا کارکرد درستی داره یا نه
+            if (!workerThread.isAlive()) {
+                throw new IllegalStateException("Worker thread failed to start.");
+            }
+
+            // ۵. راه‌اندازی StatusServer برای مشاهده وضعیت سیستم
+            int port = cfg.statusPort > 0 ? cfg.statusPort : 8082; // استفاده از پورت تنظیمات یا پیش‌فرض
+            StatusServer statusServer = new StatusServer(port, spanQueue);  // هماهنگ با StatusServer
+            statusServer.start();
+            System.out.println("[AgentMain] StatusServer started on port " + port);
+
+            // 6. نصب اینسترومنتاسیون (تزریق به کدها)
+            InstrumentationInstaller.install(inst, cfg);
+
+            // ۶. چاپ موفقیت
             System.out.println("[AgentMain] Agent initialized successfully with BatchWorker.");
 
+        } catch (IllegalStateException e) {
+            // اینجا خطاهای غیرقابل جبران رو می‌گیریم و واضح‌تر گزارش می‌کنیم
+            System.err.println("[AgentMain] Fatal Configuration Error: " + e.getMessage());
+            e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            // بررسی برای خطاهای آرگومان‌ها
+            System.err.println("[AgentMain] Invalid argument: " + e.getMessage());
+            e.printStackTrace();
         } catch (Exception e) {
-            System.err.println("[AgentMain] Fatal Error: " + e.getMessage());
+            // خطاهای غیرمنتظره
+            System.err.println("[AgentMain] Unknown Fatal Error: " + e.getMessage());
             e.printStackTrace();
         }
     }
 }
+

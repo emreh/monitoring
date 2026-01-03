@@ -2,6 +2,9 @@ package ir.myhome.agent.collector;
 
 import org.HdrHistogram.Histogram;
 
+/**
+ * synchronized حذف شد: دیگر نیازی به استفاده از قفل‌ها برای عملیات روی Histogram نیست.
+ */
 public final class HDRHistogramCollector implements PercentileCollector {
 
     private final Histogram histogram;
@@ -11,17 +14,17 @@ public final class HDRHistogramCollector implements PercentileCollector {
     }
 
     @Override
-    public synchronized void record(long value) {
-        histogram.recordValue(value);
+    public void record(long value) {
+        histogram.recordValue(value);  // ثبت مقدار در histogram به‌صورت thread-safe
     }
 
     @Override
-    public synchronized double percentile(double p) {
-        return histogram.getValueAtPercentile(p);
+    public double percentile(double p) {
+        return histogram.getValueAtPercentile(p);  // دریافت درصد
     }
 
     @Override
-    public synchronized long count() {
-        return histogram.getTotalCount();
+    public long count() {
+        return histogram.getTotalCount();  // تعداد کل رکوردها
     }
 }

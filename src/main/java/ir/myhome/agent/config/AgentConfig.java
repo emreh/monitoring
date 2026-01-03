@@ -6,7 +6,7 @@ import java.util.List;
 public final class AgentConfig {
 
     public String rootPackage = "ir.myhome.spring.";
-    public boolean debug = false;
+    public boolean debug = true;
 
     public ExporterConfig exporter = new ExporterConfig();
     public InstrumentationConfig instrumentation = new InstrumentationConfig();
