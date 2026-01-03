@@ -26,7 +26,7 @@ public final class TimingAdvice {
     public static void onExit(@Advice.Origin String method, @Advice.Enter long startTime, @Advice.Thrown Throwable throwable, @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Object returnValue) {
 
         long duration = (System.nanoTime() - startTime) / 1_000_000;
-        String traceId = TraceContextHolder.currentTraceId();
+        Long traceId = TraceContextHolder.currentTraceId();
 
         // دسترسی اساسی به کالکتور از طریق پل AgentContext
         var collector = AgentContext.getCollector();

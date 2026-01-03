@@ -51,7 +51,7 @@ public final class KafkaExporter implements AgentExporter {
 
             message += String.format(" P50: %.2f, P95: %.2f, P99: %.2f", p50, p95, p99);
 
-            producer.send(new ProducerRecord<>(topic, span.traceId, message));
+            producer.send(new ProducerRecord<>(topic, String.valueOf(span.traceId), message));
 
             // چاپ اطلاعات verbose در صورت نیاز
             if (verbose) {

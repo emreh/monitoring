@@ -21,7 +21,7 @@ public final class PercentileAdvice {
         long duration = System.currentTimeMillis() - start;
 
         // ایجاد span
-        String traceId = TraceContextHolder.currentTraceId();
+        Long traceId = TraceContextHolder.currentTraceId();
         Span span = new Span(traceId, traceId + "-" + System.nanoTime(), null, "service", method, start, duration);
         TraceContextHolder.pushSpan(span);
 

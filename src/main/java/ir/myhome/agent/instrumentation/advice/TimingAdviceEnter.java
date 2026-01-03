@@ -5,6 +5,7 @@ import ir.myhome.agent.core.Span;
 import ir.myhome.agent.core.TraceContextHolder;
 import ir.myhome.agent.util.PrettyArgRenderer;
 import ir.myhome.agent.util.SpanIdGenerator;
+import ir.myhome.agent.util.TraceIdGenerator;
 import net.bytebuddy.asm.Advice;
 
 import java.util.StringJoiner;
@@ -14,8 +15,9 @@ public final class TimingAdviceEnter {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Span enter(@Advice.Origin("#t.#m") String signature, @Advice.AllArguments Object[] args) {
         try {
-            String traceId = TraceContextHolder.currentTraceId();
-            if (traceId == null) traceId = SpanIdGenerator.nextId(); // شروع یک trace جدید اگر لازم باشد
+            Long traceId = TraceContextHolder.currentTraceId();
+            if (traceId == null) traceId = TraceIdGenerator.nextId(); // شروع یک trace جدید اگر لازم باشد
+
             String spanId = SpanIdGenerator.nextId();
             String parentId = TraceContextHolder.currentSpan() != null ? TraceContextHolder.currentSpan().spanId : null;
 

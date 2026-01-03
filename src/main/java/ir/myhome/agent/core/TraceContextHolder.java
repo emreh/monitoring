@@ -31,7 +31,7 @@ public final class TraceContextHolder {
     }
 
     /** Get current traceId */
-    public static String currentTraceId() {
+    public static Long currentTraceId() {
         Span span = currentSpan();
         return span != null ? span.traceId : null;
     }
