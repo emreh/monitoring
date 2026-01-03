@@ -10,9 +10,14 @@ import ir.myhome.agent.exporter.impl.BatchExporter;
 import ir.myhome.agent.exporter.impl.ConsoleExporter;
 import ir.myhome.agent.exporter.impl.FileExporter;
 import ir.myhome.agent.exporter.impl.KafkaExporter;
+import ir.myhome.agent.policy.PolicyStats;
+import ir.myhome.agent.policy.ReferencePolicy;
+import ir.myhome.agent.policy.SafePolicyEngine;
+import ir.myhome.agent.policy.contract.PolicyEngine;
 import ir.myhome.agent.queue.SpanQueue;
 import ir.myhome.agent.queue.SpanQueueImpl;
 import ir.myhome.agent.status.StatusServer;
+import ir.myhome.agent.util.SystemLoadCalculator;
 import ir.myhome.agent.worker.BatchWorker;
 
 import java.lang.instrument.Instrumentation;
@@ -33,6 +38,11 @@ public class AgentMain {
             MetricsAggregator metricsAggregator = new MetricsAggregator();
             Aggregator aggregator = new Aggregator(metricsAggregator);
 
+            // ایجاد شیء PolicyStats و SafePolicyEngine
+            PolicyStats stats = new PolicyStats();
+            PolicyEngine policyEngineDelegate = new ReferencePolicy(SystemLoadCalculator.calculateSampleRate());  // فرضاً این یک موتور سیاست است
+            SafePolicyEngine policyEngine = new SafePolicyEngine(policyEngineDelegate, stats);
+
             // ۲. راه‌اندازی صف برای نگهداری داده‌ها
             SpanQueue<Span> spanQueue = new SpanQueueImpl<>(10000);  // استفاده از پیاده‌سازی واقعی SpanQueue
             SpanCollector collector = new SpanCollector(spanQueue, aggregator);  // هماهنگ با کلاس SpanCollector
@@ -50,7 +60,7 @@ public class AgentMain {
             exporters.add(new ConsoleExporter(true, aggregator));
             exporters.add(new FileExporter(true, aggregator));
 
-            BatchExporter batchExporter = new BatchExporter(spanQueue, batchSize, 2000, exporters, aggregator);  // هماهنگ با BatchExporter
+            BatchExporter batchExporter = new BatchExporter(spanQueue, batchSize, 2000, exporters, aggregator, policyEngine);  // هماهنگ با BatchExporter
 
             // ۴. راه‌اندازی BatchWorker برای پردازش داده‌ها
             BatchWorker worker = new BatchWorker(spanQueue, batchExporter, batchSize, 2000);  // هماهنگ با BatchWorker

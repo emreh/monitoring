@@ -10,9 +10,8 @@ public final class ReferencePolicy implements PolicyEngine {
     private final int softSampleRate; // مثلاً 10 یعنی 1 از 10
 
     public ReferencePolicy(int softSampleRate) {
-        if (softSampleRate <= 0) {
-            throw new IllegalArgumentException("softSampleRate must be > 0");
-        }
+        if (softSampleRate <= 0) throw new IllegalArgumentException("softSampleRate must be > 0");
+
         this.softSampleRate = softSampleRate;
     }
 

@@ -10,6 +10,7 @@ public final class SafePolicyEngine implements PolicyEngine {
     private final PolicyEngine delegate;
     private final PolicyStats stats;
 
+    // سازنده که یک PolicyEngine و PolicyStats را می‌پذیرد
     public SafePolicyEngine(PolicyEngine delegate, PolicyStats stats) {
         this.delegate = delegate;
         this.stats = stats;
@@ -18,11 +19,19 @@ public final class SafePolicyEngine implements PolicyEngine {
     @Override
     public Decision evaluate(PolicyInput input) {
         try {
+            // انجام ارزیابی سیاست از PolicyEngine اصلی
             Decision decision = delegate.evaluate(input);
+
+            // ثبت تصمیمات در PolicyStats
             stats.record(decision.type());
+
+            // برگرداندن تصمیم
             return decision;
         } catch (Throwable t) {
+            // ثبت خطا در صورت وقوع استثنا
             stats.recordError();
+
+            // بازگشت به تصمیم allow در صورت خطا
             return Decision.allow(ReasonCode.POLICY_ERROR);
         }
     }

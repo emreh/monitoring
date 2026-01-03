@@ -1,11 +1,13 @@
 package ir.myhome.agent.core;
 
+import ir.myhome.agent.policy.contract.OverloadState;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class Span {
 
-    public final String traceId;
+    public final Long traceId;
     public final String spanId;
     public final String parentId;
     public String service;
@@ -14,10 +16,11 @@ public final class Span {
     public final long startEpochMs;
     public long durationMs;
     public String status = "OK";
+    public OverloadState overloadState = OverloadState.NORMAL;
     public String errorMessage;
     public final Map<String, String> tags = new ConcurrentHashMap<>();
 
-    public Span(String traceId, String spanId, String parentId, String service, String endpoint, long startEpochMs) {
+    public Span(Long traceId, String spanId, String parentId, String service, String endpoint, long startEpochMs) {
         this.traceId = traceId;
         this.spanId = spanId;
         this.parentId = parentId;
@@ -26,7 +29,7 @@ public final class Span {
         this.startEpochMs = startEpochMs;
     }
 
-    public Span(String traceId, String spanId, String parentId, String service, String endpoint, long startEpochMs, long durationMs) {
+    public Span(Long traceId, String spanId, String parentId, String service, String endpoint, long startEpochMs, long durationMs) {
         this.traceId = traceId;
         this.spanId = spanId;
         this.parentId = parentId;
