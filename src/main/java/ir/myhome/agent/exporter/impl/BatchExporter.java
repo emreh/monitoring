@@ -15,6 +15,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * می‌تواند هر تعداد اکسپورتر را به‌طور هم‌زمان مدیریت کرده و داده‌ها را به آن‌ها ارسال کند.
+ * در واقع BatchExporter هم چندگانه است، اما بیشتر برای پردازش دسته‌ای و تصمیم‌گیری سیاستی استفاده می‌شود
+ */
 public class BatchExporter implements AgentExporter {
 
     private final SpanQueue<Span> queue;

@@ -2,9 +2,12 @@ package ir.myhome.agent.collector;
 
 public interface PercentileCollector {
 
+    // ثبت داده‌های جدید
     void record(long value);
 
-    double percentile(double p); // p بین 0 تا 100
+    // محاسبه درصد
+    double percentile(double p);
 
+    // تعداد داده‌های جمع‌آوری‌شده
     long count();
 }

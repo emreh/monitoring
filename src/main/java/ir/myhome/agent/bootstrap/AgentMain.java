@@ -1,6 +1,6 @@
 package ir.myhome.agent.bootstrap;
 
-import ir.myhome.agent.collector.SpanCollector;
+import ir.myhome.agent.collector.*;
 import ir.myhome.agent.config.AgentConfig;
 import ir.myhome.agent.core.Aggregator;
 import ir.myhome.agent.core.MetricsAggregator;
@@ -16,6 +16,7 @@ import ir.myhome.agent.policy.SafePolicyEngine;
 import ir.myhome.agent.policy.contract.PolicyEngine;
 import ir.myhome.agent.queue.SpanQueue;
 import ir.myhome.agent.queue.SpanQueueImpl;
+import ir.myhome.agent.scheduler.PercentileBatchScheduler;
 import ir.myhome.agent.status.StatusServer;
 import ir.myhome.agent.util.SystemLoadCalculator;
 import ir.myhome.agent.worker.BatchWorker;
@@ -26,6 +27,8 @@ import java.util.List;
 
 public class AgentMain {
 
+    private static PercentileBatchScheduler percentileBatchScheduler;
+
     public static void premain(String agentArgs, Instrumentation inst) {
         try {
             // ۱. بارگذاری تنظیمات
@@ -33,6 +36,13 @@ public class AgentMain {
             if (cfg == null) {
                 throw new IllegalStateException("Failed to load AgentConfig.");
             }
+
+            // پیکربندی یا راه‌اندازی سیستم
+            PercentileCollector percentileCollector = new PercentileOrchestrator(new HDRHistogramCollector(1, 1000000, 2), new TDigestCollector(100.0));
+            long flushIntervalMs = 5000; // فاصله زمانی برای گزارش درصدها (مثلاً هر 5 ثانیه)
+
+            // فراخوانی start برای راه‌اندازی زمان‌بندی پردازش پرسنترایل‌ها
+            percentileBatchScheduler = PercentileBatchScheduler.start(percentileCollector, flushIntervalMs);
 
             // ایجاد شیء Aggregator
             MetricsAggregator metricsAggregator = new MetricsAggregator();
@@ -46,8 +56,6 @@ public class AgentMain {
             // ۲. راه‌اندازی صف برای نگهداری داده‌ها
             SpanQueue<Span> spanQueue = new SpanQueueImpl<>(10000);  // استفاده از پیاده‌سازی واقعی SpanQueue
             SpanCollector collector = new SpanCollector(spanQueue, aggregator);  // هماهنگ با کلاس SpanCollector
-
-            System.out.println("collector => " + collector);
 
             // ۳. راه‌اندازی BatchExporter برای ارسال داده‌ها
             int batchSize = cfg.exporter != null ? cfg.exporter.batchSize : 100;
@@ -84,6 +92,12 @@ public class AgentMain {
 
             // ۶. چاپ موفقیت
             System.out.println("[AgentMain] Agent initialized successfully with BatchWorker.");
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("[AgentMain] shutdown initiated...");
+                PercentileBatchScheduler.stop();
+                System.out.println("[AgentMain] stopped successfully.");
+            }, "agent-shutdown-hook"));
 
         } catch (IllegalStateException e) {
             // اینجا خطاهای غیرقابل جبران رو می‌گیریم و واضح‌تر گزارش می‌کنیم
