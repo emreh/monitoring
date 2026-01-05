@@ -15,6 +15,7 @@ public final class Span {
     public String statusCode;
     public final long startEpochMs;
     public long durationMs;
+    public long duration;
     public String status = "OK";
     public OverloadState overloadState = OverloadState.NORMAL;
     public String errorMessage;
@@ -59,6 +60,10 @@ public final class Span {
 
     public long getDurationMs() {
         return durationMs;
+    }
+
+    public void setDuration(long duration) {
+        this.duration = duration;
     }
 
     @Override

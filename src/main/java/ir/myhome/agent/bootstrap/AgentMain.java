@@ -6,10 +6,7 @@ import ir.myhome.agent.core.Aggregator;
 import ir.myhome.agent.core.MetricsAggregator;
 import ir.myhome.agent.core.Span;
 import ir.myhome.agent.exporter.AgentExporter;
-import ir.myhome.agent.exporter.impl.BatchExporter;
-import ir.myhome.agent.exporter.impl.ConsoleExporter;
-import ir.myhome.agent.exporter.impl.FileExporter;
-import ir.myhome.agent.exporter.impl.KafkaExporter;
+import ir.myhome.agent.exporter.impl.*;
 import ir.myhome.agent.policy.PolicyStats;
 import ir.myhome.agent.policy.ReferencePolicy;
 import ir.myhome.agent.policy.SafePolicyEngine;
@@ -27,8 +24,6 @@ import java.util.List;
 
 public class AgentMain {
 
-    private static PercentileBatchScheduler percentileBatchScheduler;
-
     public static void premain(String agentArgs, Instrumentation inst) {
         try {
             // ۱. بارگذاری تنظیمات
@@ -42,7 +37,20 @@ public class AgentMain {
             long flushIntervalMs = 5000; // فاصله زمانی برای گزارش درصدها (مثلاً هر 5 ثانیه)
 
             // فراخوانی start برای راه‌اندازی زمان‌بندی پردازش پرسنترایل‌ها
-            percentileBatchScheduler = PercentileBatchScheduler.start(percentileCollector, flushIntervalMs);
+            PercentileBatchScheduler.start(percentileCollector, flushIntervalMs);
+
+            //// ایجاد صف برای ذخیره داده‌ها
+            // تنظیم ظرفیت صف
+            SpanQueue<Long> queue = new SpanQueueImpl<>(10000);
+            // تعداد داده‌هایی که در هر بار صادر می‌شوند
+            int batchSize = cfg.exporter != null ? cfg.exporter.batchSize : 100;
+
+            // ایجاد نمونه از InstrumentedAsyncExporter
+            // LatencyCollector = وظیفه ثبت تاخیرها
+            InstrumentedAsyncExporter<Long> exporter = new InstrumentedAsyncExporter<>(queue, batchSize, new LatencyCollector(1000, 2));
+
+            // شروع فرآیند صادر کردن داده‌ها
+            exporter.start();
 
             // ایجاد شیء Aggregator
             MetricsAggregator metricsAggregator = new MetricsAggregator();
@@ -58,7 +66,6 @@ public class AgentMain {
             SpanCollector collector = new SpanCollector(spanQueue, aggregator);  // هماهنگ با کلاس SpanCollector
 
             // ۳. راه‌اندازی BatchExporter برای ارسال داده‌ها
-            int batchSize = cfg.exporter != null ? cfg.exporter.batchSize : 100;
             if (batchSize <= 0) {
                 throw new IllegalArgumentException("Batch size must be greater than zero.");
             }
@@ -87,8 +94,11 @@ public class AgentMain {
             statusServer.start();
             System.out.println("[AgentMain] StatusServer started on port " + port);
 
-            // 6. نصب اینسترومنتاسیون (تزریق به کدها)
+            // نصب اینسترومنتاسیون (تزریق به کدها)
             InstrumentationInstaller.install(inst, cfg);
+
+            // نصب اینسترومنتاسیون برای زمان ورود و خروج
+            OptimizedInstrumentation.installInstrumentation("com.example.services");
 
             // ۶. چاپ موفقیت
             System.out.println("[AgentMain] Agent initialized successfully with BatchWorker.");
@@ -96,6 +106,7 @@ public class AgentMain {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("[AgentMain] shutdown initiated...");
                 PercentileBatchScheduler.stop();
+                exporter.stop();
                 System.out.println("[AgentMain] stopped successfully.");
             }, "agent-shutdown-hook"));
 
